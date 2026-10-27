@@ -1,0 +1,30 @@
+{
+  "name": "ng-openapi-mock",
+  "version": "1.0.0",
+  "description": "Generates a mock server and an Angular mock interceptor from openapi-generator typescript-angular output.",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "bin": {
+    "ng-openapi-mock": "bin/ng-openapi-mock.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec \"test/**/*.test.mjs\"",
+    "pretest": "node -e \"require('fs').rmSync('.tmp',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "@angular/common": "~21.2.0",
+    "@angular/compiler": "~21.2.0",
+    "@angular/core": "~21.2.0",
+    "rxjs": "~7.8.0",
+    "typescript": "~5.9.3"
+  }
+}
