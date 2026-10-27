@@ -56,6 +56,18 @@ Run this in the root folder of your Angular project:
 node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs
 ```
 
+> [!IMPORTANT]
+> **In Git Bash, don't paste paths from Windows Explorer as they are.** Git Bash treats
+> `\` as an escape character, so `C:\tools\ng-openapi-mock` turns into
+> `C:toolsng-openapi-mock` and the command fails. Either:
+>
+> - use forward slashes: `C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs`
+> - or put the path in quotes: `"C:\tools\ng-openapi-mock\bin\ng-openapi-mock.mjs"`
+>
+> This applies to every path, including options such as `--generator-dir`. Also leave
+> out the leading `/` in `--prefix` (write `api`, not `/api`), because Git Bash turns
+> `/api` into a Windows path. PowerShell accepts all of these forms as they are.
+
 That's all you need in most projects. The tool finds the `.openapi-generator` folder,
 reads the generated services and models, and writes:
 
@@ -195,6 +207,9 @@ you to pick one with `--generator-dir`.
 - **"Listed in FILES but not found"**: the paths in `FILES` aren't relative to `src/app`.
   Set `--base-dir` to the right folder. If they're relative to the folder that contains
   `.openapi-generator`, they're found automatically.
+- **`Cannot find module 'C:Users...'` in Git Bash**: the path was pasted with backslashes
+  and without quotes. Use forward slashes or quotes. See the note under
+  [Generate the mocks](#generate-the-mocks).
 - **`--prefix /api` turns into `C:/Program Files/Git/api` in Git Bash**: Git Bash rewrites
   arguments that start with `/`. Write `--prefix api` instead. Both forms work in PowerShell.
 - **Port already in use**: `node mock-server/server.mjs --port 3001`.
