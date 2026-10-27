@@ -43,7 +43,7 @@ export async function generate(config, log = console.log) {
     written.push(rel(emitServer(config, routes)));
     const unproxied = routes.filter((r) => /^\/(:|$)/.test(r.path));
     if (!config.prefix && unproxied.length) {
-      warnings.push(`proxy.conf.json can't cover ${unproxied.map((r) => r.path).join(', ')}. Use --prefix or point the base path at the mock server.`);
+      warnings.push(`proxy.conf.json can't cover ${unproxied.map((r) => r.path).join(', ')}. Use --prefix or the interceptor.`);
     }
   }
   if (config.targets.includes('interceptor')) {

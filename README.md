@@ -13,9 +13,10 @@ data. By default both get generated so you can choose. Use `--targets server` or
 | | Mock server | Interceptor |
 | --- | --- | --- |
 | Runs | as a separate process next to `ng serve` | inside the Angular app |
-| Changes to the app | none (proxy or base path only) | register it in `app.config.ts` |
+| Changes to the app | none (runs through the `ng serve` proxy) | register it in `app.config.ts` |
 | Edit responses | live, no restart | generate again |
 | Visible in the browser's network tab | yes | no |
+| API calls to another server (not `localhost:4200`) | not supported | yes |
 
 You don't need to change the Angular project's `package.json` and nothing gets installed
 into it.
@@ -101,13 +102,8 @@ node mock-server/server.mjs
 It runs on http://localhost:3000 and logs every request. Change the port with
 `--port 4000` and add a response delay with `--delay 500` (in milliseconds).
 
-Next, your Angular app has to send its API calls to the mock server. How you do that
-depends on where the app sends them now. To check, open the app, press F12, go to the
-**Network** tab and look at the URL of any API request.
-
-**The URL starts with the app's own address** (for example `http://localhost:4200/...`):
-use the proxy. The generator always writes `mock-server/proxy.conf.json`. Start Angular
-with it:
+Your Angular app reaches the mock server through the Angular dev server's proxy. The
+generator always writes `mock-server/proxy.conf.json`. Start Angular with it:
 
 ```bash
 npx ng serve --proxy-config mock-server/proxy.conf.json
@@ -129,24 +125,14 @@ node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --prefix backend/v2
 > the mock server when you reload that page. Use `--prefix` to avoid this, or use the
 > interceptor.
 
-**The URL points to another server** (for example `https://api.example.com/...`): a proxy
-can't catch these requests. Either point the generated API client at the mock server, for
-example in `app.config.ts`:
+The proxy only catches API calls that go to the app's own address (for example
+`http://localhost:4200/api/...`). To check, open the app, press F12, go to the
+**Network** tab and look at the URL of any API request. If it points to another server
+(for example `https://api.example.com/...`), use the
+[Angular interceptor](#use-the-angular-interceptor) instead.
 
-```ts
-import { BASE_PATH } from './path/to/generated/client'; // the folder with .openapi-generator
-
-providers: [
-  { provide: BASE_PATH, useValue: 'http://localhost:3000' },
-]
-```
-
-or use the [Angular interceptor](#use-the-angular-interceptor) instead, which works with
-any URL. The mock server allows cross-origin requests, so pointing the client at it
-directly works without a proxy.
-
-The mock server finds routes by the end of the path, so `/api/v1/pet/5`, `/pet/5` and
-`https://anything/pet/5` all reach the `/pet/{petId}` mock.
+The mock server finds routes by the end of the path, so `/api/v1/pet/5` and `/pet/5`
+both reach the `/pet/{petId}` mock.
 
 ## Use the Angular interceptor
 
