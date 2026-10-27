@@ -53,6 +53,9 @@ export interface MockApiRoute {
 
 export const MOCK_API_DELAY_MS = ${config.delay};
 
+/** Log every mocked call to the browser console. */
+export const MOCK_API_LOG = ${config.log};
+
 export const MOCK_API_ROUTES: readonly MockApiRoute[] = [
 ${entries.join(',\n')},
 ];

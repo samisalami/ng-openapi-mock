@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { before, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import ts from 'typescript';
 import { build } from 'esbuild';
 import { firstValueFrom, of } from 'rxjs';
@@ -11,8 +11,13 @@ import { HttpRequest, HttpResponse } from '@angular/common/http';
 import { copyFixture, generateInto } from './helpers.mjs';
 
 let dir;
+let consoleCalls = [];
+const originalConsole = { groupCollapsed: console.groupCollapsed, log: console.log, groupEnd: console.groupEnd };
 
 before(async () => {
+  for (const method of Object.keys(originalConsole)) {
+    console[method] = (...args) => consoleCalls.push([method, ...args]);
+  }
   const project = copyFixture();
   await generateInto(project);
   dir = path.join(project, 'src', 'app', 'mock-api');
@@ -24,6 +29,8 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 };
 `);
 });
+
+after(() => Object.assign(console, originalConsole));
 
 // Compiler options of a new Angular 21 project.
 function typeErrors(rootNames) {
@@ -102,6 +109,30 @@ test('uses overrides instead of the generated data', async () => {
   assert.deepEqual(deleted.body, { deleted: true });
 });
 
+test('logs each mocked call to the browser console', async () => {
+  const { mockApiInterceptor } = await loadInterceptor();
+  const next = () => of(new HttpResponse({ status: 200 }));
+  consoleCalls = [];
+
+  await firstValueFrom(mockApiInterceptor(new HttpRequest('POST', '/api/store/order', { petId: 1 }), next));
+  await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/api/pet/7?details=true'), next));
+  await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/assets/i18n/de.json'), next));
+
+  const groups = consoleCalls.filter(([method]) => method === 'groupCollapsed').map(([, title]) => title);
+  assert.equal(groups.length, 2, 'only mocked calls are logged');
+  assert.match(groups[0], /\[mock\]%c POST \/api\/store\/order → 200 %cStoreService\.placeOrder \(generated, \d+ ms\)/);
+  assert.match(groups[1], /GET \/api\/pet\/7\?details=true → 200 %cPetService\.getPetById \(override/);
+  assert.deepEqual(consoleCalls.find(([, label]) => label === 'request body')[2], { petId: 1 });
+  assert.equal(consoleCalls.filter(([method]) => method === 'groupEnd').length, 2);
+});
+
+test('--no-log turns console logging off', async () => {
+  const project = copyFixture();
+  await generateInto(project, ['--no-log']);
+  const data = readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.data.ts'), 'utf8');
+  assert.match(data, /MOCK_API_LOG = false;/);
+});
+
 test('passes everything through in production mode', async () => {
   const passthrough = new HttpResponse({ status: 200, body: 'real backend' });
   const previous = globalThis.ngDevMode;
@@ -133,6 +164,7 @@ test('production builds leave the mock data and overrides out of the bundle', as
   assert.ok(!production.includes('PetService.getPetById'), 'mock routes are tree-shaken');
   assert.ok(!production.includes('example.com'), 'mock bodies are tree-shaken');
   assert.ok(!production.includes('Rex'), 'overrides are tree-shaken');
+  assert.ok(!production.includes('[mock]'), 'console logging is tree-shaken');
 
   const development = await bundle({});
   assert.ok(development.includes('PetService.getPetById'), 'development build keeps the mocks');

@@ -85,14 +85,33 @@ export const appConfig: ApplicationConfig = {
 If `provideHttpClient` is already there, add `withInterceptors([mockApiInterceptor])` to it.
 If it already has `withInterceptors`, add `mockApiInterceptor` to that list.
 
-Then start the app as usual with `npx ng serve`. Mocked API calls get an answer right
-away, and every other request (assets, translations, endpoints without a mock) goes
-through as normal. It doesn't matter which address the API client sends its calls to:
-`/api/pet/5`, `/pet/5` and `https://api.example.com/v1/pet/5` all get the `/pet/{petId}`
-mock.
+Then start the app the way you always do. Nothing about starting the app changes:
+`npm start`, `npx ng serve`, your own npm scripts, proxy configs and environment
+configurations all keep working. `ng serve` is only the plain default; any start command
+that runs the app in development mode uses the mocks.
 
-Mocked calls don't reach the network, so they don't show up in the browser's
-**Network** tab.
+Mocked API calls get an answer right away, and every other request (assets,
+translations, endpoints without a mock) goes through as normal. It doesn't matter which
+address the API client sends its calls to: `/api/pet/5`, `/pet/5` and
+`https://api.example.com/v1/pet/5` all get the `/pet/{petId}` mock.
+
+### See mocked calls in the console
+
+Mocked calls never reach the network, so they **don't show up in the browser's Network
+tab**. Instead, each one is logged to the browser console (F12 → **Console**) when its
+response arrives:
+
+```
+[mock] GET /api/pet/7?details=true → 200 PetService.getPetById (generated, 0 ms)
+```
+
+Click a line to open it and see the request body and the response body. Each line also
+shows whether the response came from your [overrides](#custom-responses) or from the
+generated data, and how long it took (including `--delay`). Calls that aren't mocked go
+to the network as usual and show up in the Network tab.
+
+Logging is on by default. To turn it off, generate with `--no-log` or set `"log": false`
+in the [config file](#options).
 
 ### Only in development mode
 
@@ -142,6 +161,7 @@ in the project root (command line wins).
 | `--base-dir <dir>` | `baseDir` | `src/app` | Folder the paths in `FILES` are relative to |
 | `--out <dir>` | `out` | `src/app/mock-api` | Where the files are written |
 | `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
+| `--no-log` | `log` | `true` | Turn off logging mocked calls to the browser console |
 | `--array-length <n>` | `arrayLength` | `3` | Number of items in generated lists |
 | `--max-depth <n>` | `maxDepth` | `4` | How deep nested objects are filled |
 | `--config <file>` | – | `ng-openapi-mock.config.json` | Use a different config file |

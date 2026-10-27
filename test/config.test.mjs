@@ -27,6 +27,17 @@ test('config file is applied and CLI flags win over it', () => {
   assert.equal(config.delay, 500);
 });
 
+test('logging is on by default and can be turned off', () => {
+  const project = copyFixture();
+  assert.equal(resolveConfig(['--project', project]).log, true);
+  assert.equal(resolveConfig(['--project', project, '--no-log']).log, false);
+  writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({ log: false }));
+  assert.equal(resolveConfig(['--project', project]).log, false);
+  assert.equal(resolveConfig(['--project', project, '--log']).log, true);
+  writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({ log: 'yes' }));
+  assert.throws(() => resolveConfig(['--project', project]), ConfigError);
+});
+
 test('rejects bad values', () => {
   const project = copyFixture();
   assert.throws(() => resolveConfig(['--project', project, '--delay', 'abc']), ConfigError);
