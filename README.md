@@ -20,11 +20,19 @@ You don't need admin rights or a global install.
 
 ## Setup
 
-Clone this repository once, anywhere you like:
+Get a copy of this repository once and put it anywhere you like, for example
+`C:/tools/ng-openapi-mock`. Either way works:
 
-```bash
-git clone git@github.com:samisalami/ng-openapi-mock.git C:/tools/ng-openapi-mock
-```
+- **Download the ZIP**: on GitHub, click **Code → Download ZIP** and unpack it. The ZIP
+  contains a folder named `ng-openapi-mock-main`. Rename it or use that path in the
+  commands below.
+- **or clone it**:
+
+  ```bash
+  git clone git@github.com:samisalami/ng-openapi-mock.git C:/tools/ng-openapi-mock
+  ```
+
+To update later, download the ZIP again and replace the folder, or run `git pull` in it.
 
 You don't need to run `npm install` for it. It uses the TypeScript that your Angular
 project already has.
