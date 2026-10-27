@@ -190,7 +190,7 @@ you to pick one with `--generator-dir`.
   arguments that start with `/`. Write `--prefix api` instead. Both forms work in PowerShell.
 - **Port already in use**: `node mock-server/server.mjs --port 3001`.
 
-## Development
+## Developing this tool
 
 ```bash
 npm install
