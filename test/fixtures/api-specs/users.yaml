@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Users
+  version: 2.0.0
+paths:
+  /user/admins:
+    get:
+      operationId: listAdmins
+      responses:
+        '200':
+          description: Admins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Admin'
+  /user/login:
+    get:
+      operationId: loginUser
+      responses:
+        '200':
+          description: Session token
+          content:
+            text/plain:
+              schema: { type: string }
+              example: token-abc123
+  /user/logout:
+    get:
+      operationId: logoutUser
+      responses:
+        default:
+          description: Logged out
+  /user/{username}:
+    get:
+      operationId: getUserByName
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      operationId: updateUser
+      responses:
+        '204':
+          description: Updated
+  /user/{username}/report:
+    get:
+      operationId: downloadUserReport
+      responses:
+        '200':
+          description: Report
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, username, email, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string, examples: [jdoe] }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: [string, 'null'], minLength: 20 }
+        createdAt: { type: string, format: date-time }
+        password: { type: string, writeOnly: true }
+        userStatus: { type: [integer, 'null'], minimum: 0, exclusiveMaximum: 2 }
+    Admin:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            permissions:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: string
+                enum: [read, write, delete]
+            isSuperAdmin: { type: boolean }

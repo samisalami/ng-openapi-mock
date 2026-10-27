@@ -10,6 +10,7 @@ export interface User {
     lastName?: string;
     email: string;
     phone?: string;
+    password?: string;
     createdAt: string;
     /**
      * User Status

@@ -14,6 +14,8 @@ into it.
 - Node.js 22.15.0 or newer
 - An Angular project that has its API client generated, so a `.openapi-generator`
   folder with a `FILES` list exists somewhere inside it, and that has had `npm install`
+- Only if you use [OpenAPI specs](#better-mock-data-from-openapi-specs) in `.yaml` format:
+  `js-yaml` in the Angular project's `node_modules`. JSON specs don't need it.
 
 You don't need admin rights or a global install.
 
@@ -189,6 +191,57 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 If an endpoint is removed from the API, the generator removes its key, and `ng serve`
 shows an error for your override until you delete it.
 
+## Better mock data from OpenAPI specs
+
+Without specs, the generator only knows the TypeScript types, so it guesses values from
+field names. If you have the OpenAPI specs (`.yaml` or `.json`) the API client was
+generated from, pass them with `--spec` and the mocks get much closer to real data. The
+specs can live anywhere, for example in another repository next to your project:
+
+```bash
+ng-openapi-mock --spec ../api-specs/orders.yaml --spec ../api-specs/customers.yaml
+```
+
+or pass a folder to use every `.yaml`, `.yml` and `.json` file directly inside it:
+
+```bash
+ng-openapi-mock --spec ../api-specs
+```
+
+To avoid typing this every time, put the paths in the [config file](#options):
+`"specs": ["../api-specs"]`.
+
+**What the specs add:**
+
+| From the spec | Effect on the mocks |
+| --- | --- |
+| `example` / `examples` on a response | used as the response, exactly as written |
+| `example` / `examples` on a schema or field | used for that object or field |
+| `default` (text, numbers, true/false) | used for that field |
+| `format` (`date`, `date-time`, `uuid`, `email`, `uri`, `int64`, `double`, …) | values in that format |
+| `minimum`/`maximum`, `minLength`/`maxLength`, `minItems`/`maxItems` | values within those limits |
+| `writeOnly` | field left out of responses (for example passwords) |
+| success status (`201`, `204`, …) | used as the response status |
+
+**What stays the same:** which calls get mocked, the keys in `mock-api.overrides.ts`
+and the types all still come from the app's generated client. Your overrides always win
+over the specs.
+
+**Good to know:**
+
+- Each call is matched to the specs by HTTP method and path (`/pet/{petId}` matches
+  `/pet/:petId`), and by `operationId` if the paths differ. Several specs are fine; they
+  don't need to be one file.
+- The generator prints how many calls it matched. Calls that no spec covers use generated
+  data and are listed as a warning. A spec that matches no call at all also gets a
+  warning, which usually means the wrong file.
+- OpenAPI 3.0, 3.1 and Swagger 2.0 are detected from the `openapi:` / `swagger:` line.
+- `$ref`s within a file and to other files (`$ref: './common.yaml#/...'`) both work.
+  Files without an `openapi:` line in a spec folder are only used as `$ref` targets.
+- A field with an example has the same value in every list item. That's what the spec
+  says, so it's expected.
+- `.yaml` specs need `js-yaml` in the Angular project's `node_modules`.
+
 ## Options
 
 You can pass options on the command line or put them in `ng-openapi-mock.config.json`
@@ -200,6 +253,7 @@ in the project root (command line wins).
 | `--generator-dir <dir>` | `generatorDir` | found automatically | The `.openapi-generator` folder |
 | `--base-dir <dir>` | `baseDir` | `src/app` | Folder the paths in `FILES` are relative to |
 | `--out <dir>` | `out` | `src/app/mock-api` | Where the files are written |
+| `--spec <file or folder>` | `specs` (list) | – | [OpenAPI specs](#better-mock-data-from-openapi-specs) for better mock data. Repeat for several |
 | `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
 | `--no-log` | `log` | `true` | Turn off logging mocked calls to the browser console |
 | `--array-length <n>` | `arrayLength` | `3` | Number of items in generated lists |
@@ -213,6 +267,7 @@ Paths are relative to the project root. Example config file:
   "generatorDir": "src/app/core/api/generated/.openapi-generator",
   "baseDir": "src/app",
   "out": "src/app/core/mock-api",
+  "specs": ["../api-specs/orders.yaml", "../api-specs/customers.yaml"],
   "delay": 300
 }
 ```
@@ -228,6 +283,10 @@ you to pick one with `--generator-dir`.
   your `PATH` yet, or the terminal was opened before you changed it. Check the
   [PATH setup](#optional-run-it-as-ng-openapi-mock) and reopen the terminal.
 - **"TypeScript was not found"**: run `npm install` in the Angular project first.
+- **"js-yaml was not found"**: same as above. If the project really doesn't have it, use
+  JSON exports of the specs instead.
+- **"matched none of the app's API calls"**: that spec describes a different API than the
+  generated client, or its paths differ and it has no matching `operationId`s.
 - **"Listed in FILES but not found"**: the paths in `FILES` aren't relative to `src/app`.
   Set `--base-dir` to the right folder. If they're relative to the folder that contains
   `.openapi-generator`, they're found automatically.

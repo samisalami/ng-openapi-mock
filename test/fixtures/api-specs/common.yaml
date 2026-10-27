@@ -1,0 +1,18 @@
+# Shared schemas, only used through $ref. Not an OpenAPI document by itself.
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, example: Dogs }
+    Result:
+      type: object
+      example:
+        code: 200
+        type: success
+        message: uploaded
+      properties:
+        code: { type: integer }
+        type: { type: string }
+        message: { type: string }

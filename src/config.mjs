@@ -9,6 +9,7 @@ export const DEFAULTS = Object.freeze({
   generatorDir: null,
   baseDir: 'src/app',
   out: 'src/app/mock-api',
+  specs: [],
   delay: 0,
   log: true,
   arrayLength: 3,
@@ -20,6 +21,7 @@ const OPTIONS = {
   'generator-dir': { type: 'string', short: 'g' },
   'base-dir': { type: 'string', short: 'b' },
   out: { type: 'string', short: 'o' },
+  spec: { type: 'string', short: 's', multiple: true },
   delay: { type: 'string' },
   log: { type: 'boolean' },
   'array-length': { type: 'string' },
@@ -72,6 +74,7 @@ export function resolveConfig(argv, cwd = process.cwd()) {
     generatorDir: fromProject(pick('generator-dir', 'generatorDir')),
     baseDir: fromProject(pick('base-dir', 'baseDir')),
     out: fromProject(pick('out', 'out')),
+    specs: toList(pick('spec', 'specs')).map(fromProject),
     delay: toInt(pick('delay', 'delay'), 'delay', 0),
     log: toBoolean(pick('log', 'log'), 'log'),
     arrayLength: toInt(pick('array-length', 'arrayLength'), 'array-length', 0),
@@ -83,6 +86,11 @@ function toInt(value, name, min) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < min) throw new ConfigError(`--${name} must be a whole number >= ${min}.`);
   return n;
+}
+
+function toList(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list.filter((item) => typeof item === 'string' && item.trim() !== '');
 }
 
 function toBoolean(value, name) {
@@ -101,6 +109,8 @@ Options:
                                (default: searched automatically)
   -b, --base-dir <dir>         Folder the paths in FILES are relative to (default: src/app)
   -o, --out <dir>              Output folder (default: src/app/mock-api)
+  -s, --spec <file|dir>        OpenAPI spec (.yaml, .yml, .json) or a folder of them, used for
+                               examples, formats and limits. Repeat for several specs.
       --delay <ms>             Artificial response delay (default: 0)
       --no-log                 Don't log mocked calls to the browser console
       --array-length <n>       Items per generated array (default: 3)
