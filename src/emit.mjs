@@ -41,6 +41,9 @@ export type MockApiRouteId =${ids};
 /** Custom response bodies, keyed by <ServiceName>.<methodName>. */
 export type MockApiOverrides = { readonly [K in MockApiRouteId]?: unknown };
 
+/** Use as an override value to send that call to the real API instead of mocking it. */
+export const MOCK_API_PASS_THROUGH = '__ng-openapi-mock:pass-through__';
+
 export interface MockApiRoute {
   readonly id: MockApiRouteId;
   readonly method: string;

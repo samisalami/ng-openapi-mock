@@ -21,11 +21,12 @@ before(async () => {
   const project = copyFixture();
   await generateInto(project);
   dir = path.join(project, 'src', 'app', 'mock-api');
-  writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides } from './mock-api.data';
+  writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'PetService.getPetById': { id: 7, name: 'Rex', photoUrls: [] },
   'PetService.deletePet': { deleted: true },
+  'UserService.loginUser': MOCK_API_PASS_THROUGH,
 };
 `);
 });
@@ -56,6 +57,12 @@ function typeErrors(rootNames) {
 
 test('generated files type-check against Angular 21.2 in strict mode', () => {
   assert.deepEqual(typeErrors([path.join(dir, 'mock-api.interceptor.ts')]), []);
+});
+
+test('a freshly created overrides file type-checks', async () => {
+  const project = copyFixture();
+  await generateInto(project);
+  assert.deepEqual(typeErrors([path.join(project, 'src', 'app', 'mock-api', 'mock-api.interceptor.ts')]), []);
 });
 
 test('the overrides file rejects unknown keys', () => {
@@ -107,6 +114,20 @@ test('uses overrides instead of the generated data', async () => {
   const deleted = await firstValueFrom(mockApiInterceptor(new HttpRequest('DELETE', '/api/pet/7'), next));
   assert.equal(deleted.status, 200, 'an override gives a 204 endpoint a body');
   assert.deepEqual(deleted.body, { deleted: true });
+});
+
+test('sends pass-through calls to the real API and logs them', async () => {
+  const { mockApiInterceptor } = await loadInterceptor();
+  const real = new HttpResponse({ status: 200, body: 'real token' });
+  consoleCalls = [];
+
+  const login = await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/api/user/login'), () => of(real)));
+  assert.equal(login, real);
+  const [, line] = consoleCalls.find(([method]) => method === 'log');
+  assert.match(line, /GET \/api\/user\/login → real API %cUserService\.loginUser \(pass-through\)/);
+
+  const logout = await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/api/user/logout'), () => of(real)));
+  assert.equal(logout.status, 204, 'other calls are still mocked');
 });
 
 test('logs each mocked call to the browser console', async () => {
@@ -165,6 +186,7 @@ test('production builds leave the mock data and overrides out of the bundle', as
   assert.ok(!production.includes('example.com'), 'mock bodies are tree-shaken');
   assert.ok(!production.includes('Rex'), 'overrides are tree-shaken');
   assert.ok(!production.includes('[mock]'), 'console logging is tree-shaken');
+  assert.ok(!production.includes('pass-through'), 'pass-through marker is tree-shaken');
 
   const development = await bundle({});
   assert.ok(development.includes('PetService.getPetById'), 'development build keeps the mocks');

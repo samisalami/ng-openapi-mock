@@ -62,7 +62,7 @@ reads the generated services and models, and writes three files into `src/app/mo
 | --- | --- | --- |
 | `mock-api.interceptor.ts` | the interceptor you register in the app | replaced |
 | `mock-api.data.ts` | the generated mock responses | replaced |
-| `mock-api.overrides.ts` | your [custom responses](#custom-responses) | **kept**, never overwritten |
+| `mock-api.overrides.ts` | your [custom responses and pass-throughs](#custom-responses-and-real-api-calls) | **kept**, never overwritten |
 
 Run the command again whenever the API client is regenerated.
 
@@ -106,7 +106,7 @@ response arrives:
 ```
 
 Click a line to open it and see the request body and the response body. Each line also
-shows whether the response came from your [overrides](#custom-responses) or from the
+shows whether the response came from your [overrides](#custom-responses-and-real-api-calls) or from the
 generated data, and how long it took (including `--delay`). Calls that aren't mocked go
 to the network as usual and show up in the Network tab.
 
@@ -125,26 +125,42 @@ committed by accident:
 If a non-production environment (for example staging) is built with the production
 configuration, the mocks are off there too.
 
-## Custom responses
+## Custom responses and real API calls
 
-To replace a generated response, add an entry to `src/app/mock-api/mock-api.overrides.ts`.
-The key is the service class and method of the generated API client, and the value is
-the response body:
+`src/app/mock-api/mock-api.overrides.ts` decides per call what happens instead of the
+generated mock. The key is the service class and method of the generated API client. The
+value is either:
+
+- **a response body**, to replace the generated response
+- **`MOCK_API_PASS_THROUGH`**, to not mock that call: it goes to the real API as if the
+  interceptor weren't there
 
 ```ts
-import { MockApiOverrides } from './mock-api.data';
+import { MockApiOverrides, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  // custom responses
   'PetService.getPetById': { id: 1, name: 'Rex', photoUrls: [] },
   'StoreService.getInventory': { available: 12, sold: 3 },
+
+  // these go to the real API
+  'UserService.loginUser': MOCK_API_PASS_THROUGH,
+  'UserService.logoutUser': MOCK_API_PASS_THROUGH,
 };
 ```
 
 - Your editor suggests all available keys, and a typo is a compile error.
-- `ng serve` picks up changes right away. You don't need to run the generator again.
+- The app picks up changes right away. You don't need to run the generator again.
 - The generator creates this file once and never overwrites it.
+- Pass-through calls show up in the Network tab like any real request. If
+  [logging](#see-mocked-calls-in-the-console) is on, the console also shows a
+  `[mock] … → real API` line for them, so you can see the setting took effect.
 - Endpoints that return nothing respond with `204 No Content`. An override for one of them
   is sent as `200` with your body.
+
+> [!NOTE]
+> If your overrides file was created by an older version, add `MOCK_API_PASS_THROUGH` to
+> its import line as shown above.
 
 If an endpoint is removed from the API, the generator removes its key, and `ng serve`
 shows an error for your override until you delete it.
