@@ -24,6 +24,7 @@
     "@angular/common": "~21.2.0",
     "@angular/compiler": "~21.2.0",
     "@angular/core": "~21.2.0",
+    "esbuild": "~0.28.1",
     "rxjs": "~7.8.0",
     "typescript": "~5.9.3"
   }

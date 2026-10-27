@@ -3,17 +3,24 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { delay, of } from 'rxjs';
 import { MOCK_API_DELAY_MS, MOCK_API_ROUTES } from './mock-api.data';
 
-/**
- * Answers API calls with generated mock data. Requests without a mock pass
- * through unchanged. Register it in app.config.ts:
- *   provideHttpClient(withInterceptors([mockApiInterceptor]))
- */
-export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
+const mockResponses: HttpInterceptorFn = (req, next) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
-  const route = MOCK_API_ROUTES.find((r) => r.method === req.method && r.pattern.test(pathname));
+  const route = MOCK_API_ROUTES.find((r) => r.method === req.method && new RegExp(r.pattern).test(pathname));
   if (!route) {
     return next(req);
   }
   const body = route.kind === 'blob' ? new Blob([]) : route.body == null ? null : structuredClone(route.body);
   return of(new HttpResponse({ status: route.status, body, url: req.url })).pipe(delay(MOCK_API_DELAY_MS));
 };
+
+/**
+ * Answers API calls with generated mock data. Requests without a mock pass
+ * through unchanged. Register it in app.config.ts:
+ *   provideHttpClient(withInterceptors([mockApiInterceptor]))
+ *
+ * Only active in development mode (ng serve, development builds). Production
+ * builds replace ngDevMode with false, so every request passes through and
+ * the mock data is left out of the bundle.
+ */
+export const mockApiInterceptor: HttpInterceptorFn =
+  typeof ngDevMode !== 'undefined' && !ngDevMode ? (req, next) => next(req) : mockResponses;

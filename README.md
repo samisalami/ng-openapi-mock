@@ -120,8 +120,17 @@ export const appConfig: ApplicationConfig = {
 ```
 
 Mocked API calls get an answer right away, and every other request (assets, translations,
-endpoints without a mock) goes through as normal. Only enable it for local development,
-for example behind a flag in your environment file.
+endpoints without a mock) goes through as normal.
+
+**It only works in development mode**, so it's safe if the registration gets committed by
+accident:
+
+- `ng serve` and development builds use the mocks.
+- Production builds (`ng build` with the default production configuration) ignore it.
+  Every request goes to the real API, and the mock data isn't even included in the bundle.
+
+If a non-production environment (for example staging) is built with the production
+configuration, the mocks are off there too.
 
 ## Custom responses
 

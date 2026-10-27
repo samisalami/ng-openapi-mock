@@ -73,7 +73,8 @@ export function emitInterceptor(config, routes, overrides) {
       `id: ${JSON.stringify(route.id)}`,
       `method: ${JSON.stringify(route.method)}`,
       `path: ${JSON.stringify(route.path)}`,
-      `pattern: new RegExp(${JSON.stringify(route.pattern)})`,
+      // A plain string, not a RegExp, so production builds can drop the unused table.
+      `pattern: ${JSON.stringify(route.pattern)}`,
       `status: ${body != null && route.status === 204 ? 200 : route.status}`,
       `kind: ${JSON.stringify(route.kind)}`,
       `body: ${indent(JSON.stringify(body ?? null, null, 2), '    ')}`,
@@ -88,7 +89,7 @@ export interface MockApiRoute {
   readonly id: string;
   readonly method: string;
   readonly path: string;
-  readonly pattern: RegExp;
+  readonly pattern: string;
   readonly status: number;
   readonly kind: 'json' | 'text' | 'blob' | 'none';
   readonly body: unknown;
