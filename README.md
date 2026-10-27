@@ -6,8 +6,19 @@ Generates mock data for an Angular project whose API client was created with
 - **a mock server**: a small Node server you start next to `ng serve`
 - **an Angular interceptor**: answers API calls inside the app, with no extra process
 
-Both use the same generated data. You don't need to change the Angular project's
-`package.json` and nothing gets installed into it.
+**Pick one, you don't need both.** Each works on its own and serves the same generated
+data. By default both get generated so you can choose. Use `--targets server` or
+`--targets interceptor` to generate only the one you use.
+
+| | Mock server | Interceptor |
+| --- | --- | --- |
+| Runs | as a separate process next to `ng serve` | inside the Angular app |
+| Changes to the app | none (proxy or base path only) | register it in `app.config.ts` |
+| Edit responses | live, no restart | generate again |
+| Visible in the browser's network tab | yes | no |
+
+You don't need to change the Angular project's `package.json` and nothing gets installed
+into it.
 
 ## Requirements
 
@@ -48,10 +59,21 @@ node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs
 That's all you need in most projects. The tool finds the `.openapi-generator` folder,
 reads the generated services and models, and writes:
 
-| Folder | What's inside |
-| --- | --- |
-| `mock-server/` | `server.mjs`, `routes.json`, `responses/`, `overrides/` |
-| `src/app/mock-api/` | `mock-api.interceptor.ts`, `mock-api.data.ts` |
+| Folder | What's inside | Only with |
+| --- | --- | --- |
+| `mock-server/` | `server.mjs`, `routes.json`, `responses/`, `overrides/` | `--targets server` |
+| `src/app/mock-api/` | `mock-api.interceptor.ts`, `mock-api.data.ts` | `--targets interceptor` |
+
+To generate just one of them:
+
+```bash
+node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --targets server
+node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --targets interceptor
+```
+
+Then follow either [Use the mock server](#use-the-mock-server) or
+[Use the Angular interceptor](#use-the-angular-interceptor). If you set up both at the
+same time, the interceptor answers first and the server never sees those requests.
 
 Run the command again whenever the API client is regenerated.
 
