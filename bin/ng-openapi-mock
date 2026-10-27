@@ -1,0 +1,3 @@
+#!/bin/sh
+# Lets Git Bash run "ng-openapi-mock" when this folder is on PATH.
+exec node "$(dirname "$0")/ng-openapi-mock.mjs" "$@"

@@ -36,13 +36,37 @@ To update later, download the ZIP again and replace the folder, or run `git pull
 You don't need to run `npm install` for it. It uses the TypeScript that your Angular
 project already has.
 
+### Optional: run it as `ng-openapi-mock`
+
+Add the tool's `bin` folder to your `PATH` once, and you can type `ng-openapi-mock` in
+PowerShell, cmd and Git Bash instead of the full `node C:/tools/…` command. It works
+without admin rights:
+
+1. Open the Start menu, search for **"Edit environment variables for your account"** and
+   open it.
+2. Select **Path** under "User variables", click **Edit**, then **New**.
+3. Enter the `bin` folder, for example `C:\tools\ng-openapi-mock\bin`. Use the `bin`
+   folder, not the `.mjs` file inside it.
+4. Click **OK** in both windows, then close and reopen your terminals (and VS Code, if you
+   use its terminal). Terminals that were already open don't see the change.
+
+To check, run `ng-openapi-mock --version`.
+
 ## Generate the mocks
 
 Run this in the root folder of your Angular project:
 
 ```bash
+ng-openapi-mock
+```
+
+or, without the [PATH setup](#optional-run-it-as-ng-openapi-mock):
+
+```bash
 node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs
 ```
+
+All options work the same with both forms, for example `ng-openapi-mock --no-log`.
 
 > [!IMPORTANT]
 > **In Git Bash, don't paste paths from Windows Explorer as they are.** Git Bash treats
@@ -200,6 +224,9 @@ you to pick one with `--generator-dir`.
 
 ## Troubleshooting
 
+- **`ng-openapi-mock` is not recognized / command not found**: the `bin` folder isn't on
+  your `PATH` yet, or the terminal was opened before you changed it. Check the
+  [PATH setup](#optional-run-it-as-ng-openapi-mock) and reopen the terminal.
 - **"TypeScript was not found"**: run `npm install` in the Angular project first.
 - **"Listed in FILES but not found"**: the paths in `FILES` aren't relative to `src/app`.
   Set `--base-dir` to the right folder. If they're relative to the folder that contains

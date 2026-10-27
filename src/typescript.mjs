@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { SourceError } from './files.mjs';
 
 /**
  * Uses the TypeScript compiler of the Angular project, so this tool needs no
@@ -17,7 +18,7 @@ export function loadTypeScript(projectDir) {
       // try the next location
     }
   }
-  throw new Error(
+  throw new SourceError(
     `TypeScript was not found. Run "npm install" in ${projectDir} first, so node_modules/typescript exists.`,
   );
 }
