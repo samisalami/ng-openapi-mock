@@ -82,6 +82,14 @@ test('writes the server files and proxy config', async () => {
   });
 });
 
+test('without --prefix the proxy config covers the top-level API paths', async () => {
+  const project = copyFixture();
+  await generateInto(project);
+  const proxy = readJson(path.join(project, 'mock-server', 'proxy.conf.json'));
+  assert.deepEqual(Object.keys(proxy), ['/pet', '/store', '/user']);
+  assert.equal(proxy['/pet'].target, 'http://localhost:3000');
+});
+
 test('keeps overrides, removes stale responses and bakes overrides into the interceptor', async () => {
   const project = copyFixture();
   await generateInto(project);

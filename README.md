@@ -101,19 +101,51 @@ node mock-server/server.mjs
 It runs on http://localhost:3000 and logs every request. Change the port with
 `--port 4000` and add a response delay with `--delay 500` (in milliseconds).
 
-To point your Angular app at it, either:
+Next, your Angular app has to send its API calls to the mock server. How you do that
+depends on where the app sends them now. To check, open the app, press F12, go to the
+**Network** tab and look at the URL of any API request.
 
-- **Use a proxy** (recommended): generate with `--prefix api` if your API calls go to
-  `/api/...`, then start Angular with
+**The URL starts with the app's own address** (for example `http://localhost:4200/...`):
+use the proxy. The generator always writes `mock-server/proxy.conf.json`. Start Angular
+with it:
 
-  ```bash
-  ng serve --proxy-config mock-server/proxy.conf.json
-  ```
+```bash
+npx ng serve --proxy-config mock-server/proxy.conf.json
+```
 
-- **or set the base path** of the generated API client to `http://localhost:3000`.
-  The server allows cross-origin requests.
+By default the proxy forwards the first part of every API path, for example
+`/pet`, `/store` and `/user`. If all your API calls share one prefix, such as `/api/...`
+or `/backend/v2/...`, generate with that prefix instead. The proxy then forwards only
+that path, which avoids conflicts with page URLs of your app:
 
-Routes match by their end, so `/api/v1/pet/5`, `/pet/5` and
+```bash
+node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --prefix api
+node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --prefix backend/v2
+```
+
+> [!NOTE]
+> Without a prefix, a page of your app whose URL starts with the same part as an API path
+> (for example the page `/user/settings` next to the API `/user/{username}`) is sent to
+> the mock server when you reload that page. Use `--prefix` to avoid this, or use the
+> interceptor.
+
+**The URL points to another server** (for example `https://api.example.com/...`): a proxy
+can't catch these requests. Either point the generated API client at the mock server, for
+example in `app.config.ts`:
+
+```ts
+import { BASE_PATH } from './path/to/generated/client'; // the folder with .openapi-generator
+
+providers: [
+  { provide: BASE_PATH, useValue: 'http://localhost:3000' },
+]
+```
+
+or use the [Angular interceptor](#use-the-angular-interceptor) instead, which works with
+any URL. The mock server allows cross-origin requests, so pointing the client at it
+directly works without a proxy.
+
+The mock server finds routes by the end of the path, so `/api/v1/pet/5`, `/pet/5` and
 `https://anything/pet/5` all reach the `/pet/{petId}` mock.
 
 ## Use the Angular interceptor
@@ -181,7 +213,7 @@ in the project root (command line wins).
 | `--out <dir>` | `out` | `mock-server` | Mock server folder |
 | `--interceptor-out <dir>` | `interceptorOut` | `src/app/mock-api` | Interceptor folder |
 | `--port <n>` | `port` | `3000` | Default port of the mock server |
-| `--prefix <path>` | `prefix` | – | API path prefix, writes `mock-server/proxy.conf.json` |
+| `--prefix <path>` | `prefix` | – | Common start of all API paths, used by `mock-server/proxy.conf.json` |
 | `--delay <ms>` | `delay` | `0` | Response delay for server and interceptor |
 | `--array-length <n>` | `arrayLength` | `3` | Number of items in generated lists |
 | `--max-depth <n>` | `maxDepth` | `4` | How deep nested objects are filled |
@@ -212,7 +244,13 @@ you to pick one with `--generator-dir`.
   [Generate the mocks](#generate-the-mocks).
 - **`--prefix /api` turns into `C:/Program Files/Git/api` in Git Bash**: Git Bash rewrites
   arguments that start with `/`. Write `--prefix api` instead. Both forms work in PowerShell.
-- **Port already in use**: `node mock-server/server.mjs --port 3001`.
+- **Port already in use**: `node mock-server/server.mjs --port 3001`. Also generate with
+  `--port 3001`, so `proxy.conf.json` points to the same port.
+- **`mock-server/proxy.conf.json` doesn't exist**: generate with `--targets server` or
+  without `--targets`. Generators from before this version only wrote it with `--prefix`,
+  so download the tool again if needed.
+- **API calls still reach the real backend**: check the request URL in the browser's
+  Network tab. See [Use the mock server](#use-the-mock-server).
 
 ## Developing this tool
 

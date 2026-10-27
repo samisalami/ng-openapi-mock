@@ -56,13 +56,22 @@ export function emitServer(config, routes) {
       .replace('__DEFAULT_DELAY__', String(config.delay)),
   );
 
-  if (config.prefix) {
-    write(
-      path.join(out, 'proxy.conf.json'),
-      json({ [config.prefix]: { target: `http://localhost:${config.port}`, secure: false, changeOrigin: true } }),
-    );
-  }
+  const target = { target: `http://localhost:${config.port}`, secure: false, changeOrigin: true };
+  const proxy = Object.fromEntries(proxyContexts(config.prefix, routes).map((context) => [context, target]));
+  write(path.join(out, 'proxy.conf.json'), json(proxy));
   return out;
+}
+
+/**
+ * Paths the Angular dev server should forward: the prefix if there is one,
+ * otherwise the first segment of every API path (/pet, /store, ...).
+ */
+export function proxyContexts(prefix, routes) {
+  if (prefix) return [prefix];
+  const firstSegments = routes
+    .map((route) => route.path.split('/').filter(Boolean)[0])
+    .filter((segment) => segment && !segment.startsWith(':'));
+  return [...new Set(firstSegments)].sort().map((segment) => `/${segment}`);
 }
 
 export function emitInterceptor(config, routes, overrides) {
