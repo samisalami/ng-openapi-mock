@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { analyzeServices } from './analyze.mjs';
-import { emitInterceptor, emitServer, readOverrides } from './emit.mjs';
+import { emitInterceptor, emitServer, ensureOverridesFolder, readOverrides } from './emit.mjs';
 import { locateGeneratorDir, readGeneratorVersion, resolveSourceFiles, SourceError } from './files.mjs';
 import { createMockFactory } from './mock-data.mjs';
 import { loadTypeScript } from './typescript.mjs';
@@ -37,6 +37,7 @@ export async function generate(config, log = console.log) {
     body: op.kind === 'json' || op.kind === 'text' ? mock(op.type) : null,
   })));
 
+  ensureOverridesFolder(config.out);
   const written = [];
   if (config.targets.includes('server')) {
     written.push(rel(emitServer(config, routes)));

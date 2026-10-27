@@ -29,6 +29,14 @@ export function readOverrides(outDir, routes) {
   return overrides;
 }
 
+/** Creates <out>/overrides with a short README; used by both targets. */
+export function ensureOverridesFolder(outDir) {
+  const overridesReadme = path.join(outDir, 'overrides', 'README.md');
+  if (!existsSync(overridesReadme)) {
+    write(overridesReadme, OVERRIDES_README);
+  }
+}
+
 export function emitServer(config, routes) {
   const out = config.out;
   rmSync(path.join(out, 'responses'), { recursive: true, force: true });
@@ -47,13 +55,6 @@ export function emitServer(config, routes) {
       .replace('__DEFAULT_PORT__', String(config.port))
       .replace('__DEFAULT_DELAY__', String(config.delay)),
   );
-
-  const overridesDir = path.join(out, 'overrides');
-  mkdirSync(overridesDir, { recursive: true });
-  const overridesReadme = path.join(overridesDir, 'README.md');
-  if (!existsSync(overridesReadme)) {
-    write(overridesReadme, OVERRIDES_README);
-  }
 
   if (config.prefix) {
     write(
@@ -116,6 +117,7 @@ Put a JSON file here to replace a generated response:
 
 Example: overrides/PetService/getPetById.json
 
-The mock server picks up changes immediately. The Angular interceptor
-needs the generator to run again.
+Overrides work for the mock server and for the Angular interceptor.
+The mock server picks up changes immediately. The interceptor needs
+the generator to run again.
 `;

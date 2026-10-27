@@ -104,6 +104,7 @@ test('only writes the requested targets', async () => {
   const project = copyFixture();
   await generateInto(project, ['--targets', 'interceptor']);
   assert.ok(!existsSync(path.join(project, 'mock-server', 'server.mjs')));
+  assert.ok(existsSync(path.join(project, 'mock-server', 'overrides', 'README.md')), 'overrides folder exists for the interceptor too');
   assert.ok(existsSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.interceptor.ts')));
 });
 

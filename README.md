@@ -61,7 +61,8 @@ reads the generated services and models, and writes:
 
 | Folder | What's inside | Only with |
 | --- | --- | --- |
-| `mock-server/` | `server.mjs`, `routes.json`, `responses/`, `overrides/` | `--targets server` |
+| `mock-server/` | `server.mjs`, `routes.json`, `responses/` | `--targets server` |
+| `mock-server/overrides/` | your [custom responses](#custom-responses) | always (used by both) |
 | `src/app/mock-api/` | `mock-api.interceptor.ts`, `mock-api.data.ts` | `--targets interceptor` |
 
 To generate just one of them:
@@ -124,18 +125,23 @@ for example behind a flag in your environment file.
 
 ## Custom responses
 
-To replace a generated response, put a JSON file into `mock-server/overrides/`. Name it
-after the service class and method of the generated client:
+Custom responses work with **both** the mock server and the interceptor. The folder is
+always `mock-server/overrides/`, even if you only use the interceptor (or the folder you
+set with `--out`, plus `/overrides`).
+
+To replace a generated response, put a JSON file into that folder. Name it after the
+service class and method of the generated client:
 
 ```
 mock-server/overrides/PetService/getPetById.json
 ```
 
-The tool never touches the overrides folder.
+The tool never touches the overrides folder. When you apply your changes depends on
+which one you use:
 
-- The **mock server** picks up changes right away. You don't need to restart it.
-- The **interceptor** includes overrides when you generate, so run the generator again
-  after you change them.
+| | Mock server | Interceptor |
+| --- | --- | --- |
+| After you change an override | it's used on the next request, no restart needed | run the generator again |
 
 Endpoints that return nothing respond with `204 No Content`. An override for one of them
 is sent as `200` with your JSON.
