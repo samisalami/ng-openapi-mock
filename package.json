@@ -1,7 +1,7 @@
 {
   "name": "ng-openapi-mock",
   "version": "1.0.0",
-  "description": "Generates a mock server and an Angular mock interceptor from openapi-generator typescript-angular output.",
+  "description": "Generates an Angular mock interceptor from openapi-generator typescript-angular output.",
   "type": "module",
   "private": true,
   "license": "UNLICENSED",

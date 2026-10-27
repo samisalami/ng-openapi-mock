@@ -1,22 +1,9 @@
 # ng-openapi-mock
 
 Generates mock data for an Angular project whose API client was created with
-[openapi-generator](https://openapi-generator.tech) (`typescript-angular`). You get:
-
-- **a mock server**: a small Node server you start next to `ng serve`
-- **an Angular interceptor**: answers API calls inside the app, with no extra process
-
-**Pick one, you don't need both.** Each works on its own and serves the same generated
-data. By default both get generated so you can choose. Use `--targets server` or
-`--targets interceptor` to generate only the one you use.
-
-| | Mock server | Interceptor |
-| --- | --- | --- |
-| Runs | as a separate process next to `ng serve` | inside the Angular app |
-| Changes to the app | none (runs through the `ng serve` proxy) | register it in `app.config.ts` |
-| Edit responses | live, no restart | generate again |
-| Visible in the browser's network tab | yes | no |
-| API calls to another server (not `localhost:4200`) | not supported | yes |
+[openapi-generator](https://openapi-generator.tech) (`typescript-angular`), together with an
+Angular interceptor that answers the app's API calls with it. You don't need a backend or
+a separate server: `ng serve` is enough.
 
 You don't need to change the Angular project's `package.json` and nothing gets installed
 into it.
@@ -65,80 +52,26 @@ node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs
 > - use forward slashes: `C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs`
 > - or put the path in quotes: `"C:\tools\ng-openapi-mock\bin\ng-openapi-mock.mjs"`
 >
-> This applies to every path, including options such as `--generator-dir`. Also leave
-> out the leading `/` in `--prefix` (write `api`, not `/api`), because Git Bash turns
-> `/api` into a Windows path. PowerShell accepts all of these forms as they are.
+> This applies to every path, including options such as `--generator-dir`. PowerShell
+> accepts both forms as they are.
 
 That's all you need in most projects. The tool finds the `.openapi-generator` folder,
-reads the generated services and models, and writes:
+reads the generated services and models, and writes three files into `src/app/mock-api/`:
 
-| Folder | What's inside | Only with |
+| File | What it is | On the next run |
 | --- | --- | --- |
-| `mock-server/` | `server.mjs`, `routes.json`, `responses/` | `--targets server` |
-| `mock-server/overrides/` | your [custom responses](#custom-responses) | always (used by both) |
-| `src/app/mock-api/` | `mock-api.interceptor.ts`, `mock-api.data.ts` | `--targets interceptor` |
-
-To generate just one of them:
-
-```bash
-node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --targets server
-node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --targets interceptor
-```
-
-Then follow either [Use the mock server](#use-the-mock-server) or
-[Use the Angular interceptor](#use-the-angular-interceptor). If you set up both at the
-same time, the interceptor answers first and the server never sees those requests.
+| `mock-api.interceptor.ts` | the interceptor you register in the app | replaced |
+| `mock-api.data.ts` | the generated mock responses | replaced |
+| `mock-api.overrides.ts` | your [custom responses](#custom-responses) | **kept**, never overwritten |
 
 Run the command again whenever the API client is regenerated.
 
-## Use the mock server
-
-Start it in a second terminal:
-
-```bash
-node mock-server/server.mjs
-```
-
-It runs on http://localhost:3000 and logs every request. Change the port with
-`--port 4000` and add a response delay with `--delay 500` (in milliseconds).
-
-Your Angular app reaches the mock server through the Angular dev server's proxy. The
-generator always writes `mock-server/proxy.conf.json`. Start Angular with it:
-
-```bash
-npx ng serve --proxy-config mock-server/proxy.conf.json
-```
-
-By default the proxy forwards the first part of every API path, for example
-`/pet`, `/store` and `/user`. If all your API calls share one prefix, such as `/api/...`
-or `/backend/v2/...`, generate with that prefix instead. The proxy then forwards only
-that path, which avoids conflicts with page URLs of your app:
-
-```bash
-node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --prefix api
-node C:/tools/ng-openapi-mock/bin/ng-openapi-mock.mjs --prefix backend/v2
-```
-
-> [!NOTE]
-> Without a prefix, a page of your app whose URL starts with the same part as an API path
-> (for example the page `/user/settings` next to the API `/user/{username}`) is sent to
-> the mock server when you reload that page. Use `--prefix` to avoid this, or use the
-> interceptor.
-
-The proxy only catches API calls that go to the app's own address (for example
-`http://localhost:4200/api/...`). To check, open the app, press F12, go to the
-**Network** tab and look at the URL of any API request. If it points to another server
-(for example `https://api.example.com/...`), use the
-[Angular interceptor](#use-the-angular-interceptor) instead.
-
-The mock server finds routes by the end of the path, so `/api/v1/pet/5` and `/pet/5`
-both reach the `/pet/{petId}` mock.
-
-## Use the Angular interceptor
+## Use the interceptor
 
 Register it in `app.config.ts`:
 
 ```ts
+import { ApplicationConfig } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { mockApiInterceptor } from './mock-api/mock-api.interceptor';
 
@@ -149,11 +82,22 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-Mocked API calls get an answer right away, and every other request (assets, translations,
-endpoints without a mock) goes through as normal.
+If `provideHttpClient` is already there, add `withInterceptors([mockApiInterceptor])` to it.
+If it already has `withInterceptors`, add `mockApiInterceptor` to that list.
 
-**It only works in development mode**, so it's safe if the registration gets committed by
-accident:
+Then start the app as usual with `npx ng serve`. Mocked API calls get an answer right
+away, and every other request (assets, translations, endpoints without a mock) goes
+through as normal. It doesn't matter which address the API client sends its calls to:
+`/api/pet/5`, `/pet/5` and `https://api.example.com/v1/pet/5` all get the `/pet/{petId}`
+mock.
+
+Mocked calls don't reach the network, so they don't show up in the browser's
+**Network** tab.
+
+### Only in development mode
+
+The interceptor only works in development mode, so it's safe if the registration gets
+committed by accident:
 
 - `ng serve` and development builds use the mocks.
 - Production builds (`ng build` with the default production configuration) ignore it.
@@ -164,26 +108,27 @@ configuration, the mocks are off there too.
 
 ## Custom responses
 
-Custom responses work with **both** the mock server and the interceptor. The folder is
-always `mock-server/overrides/`, even if you only use the interceptor (or the folder you
-set with `--out`, plus `/overrides`).
+To replace a generated response, add an entry to `src/app/mock-api/mock-api.overrides.ts`.
+The key is the service class and method of the generated API client, and the value is
+the response body:
 
-To replace a generated response, put a JSON file into that folder. Name it after the
-service class and method of the generated client:
+```ts
+import { MockApiOverrides } from './mock-api.data';
 
+export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  'PetService.getPetById': { id: 1, name: 'Rex', photoUrls: [] },
+  'StoreService.getInventory': { available: 12, sold: 3 },
+};
 ```
-mock-server/overrides/PetService/getPetById.json
-```
 
-The tool never touches the overrides folder. When you apply your changes depends on
-which one you use:
+- Your editor suggests all available keys, and a typo is a compile error.
+- `ng serve` picks up changes right away. You don't need to run the generator again.
+- The generator creates this file once and never overwrites it.
+- Endpoints that return nothing respond with `204 No Content`. An override for one of them
+  is sent as `200` with your body.
 
-| | Mock server | Interceptor |
-| --- | --- | --- |
-| After you change an override | it's used on the next request, no restart needed | run the generator again |
-
-Endpoints that return nothing respond with `204 No Content`. An override for one of them
-is sent as `200` with your JSON.
+If an endpoint is removed from the API, the generator removes its key, and `ng serve`
+shows an error for your override until you delete it.
 
 ## Options
 
@@ -195,12 +140,8 @@ in the project root (command line wins).
 | `--project <dir>` | – | current folder | Angular project root |
 | `--generator-dir <dir>` | `generatorDir` | found automatically | The `.openapi-generator` folder |
 | `--base-dir <dir>` | `baseDir` | `src/app` | Folder the paths in `FILES` are relative to |
-| `--targets <list>` | `targets` | `server,interceptor` | What to generate: `server`, `interceptor` or both |
-| `--out <dir>` | `out` | `mock-server` | Mock server folder |
-| `--interceptor-out <dir>` | `interceptorOut` | `src/app/mock-api` | Interceptor folder |
-| `--port <n>` | `port` | `3000` | Default port of the mock server |
-| `--prefix <path>` | `prefix` | – | Common start of all API paths, used by `mock-server/proxy.conf.json` |
-| `--delay <ms>` | `delay` | `0` | Response delay for server and interceptor |
+| `--out <dir>` | `out` | `src/app/mock-api` | Where the files are written |
+| `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
 | `--array-length <n>` | `arrayLength` | `3` | Number of items in generated lists |
 | `--max-depth <n>` | `maxDepth` | `4` | How deep nested objects are filled |
 | `--config <file>` | – | `ng-openapi-mock.config.json` | Use a different config file |
@@ -211,10 +152,12 @@ Paths are relative to the project root. Example config file:
 {
   "generatorDir": "src/app/core/api/generated/.openapi-generator",
   "baseDir": "src/app",
-  "prefix": "api",
-  "port": 3000
+  "out": "src/app/core/mock-api",
+  "delay": 300
 }
 ```
+
+If you change `out`, import the interceptor from that folder in `app.config.ts`.
 
 If your project has more than one `.openapi-generator` folder, the tool lists them and asks
 you to pick one with `--generator-dir`.
@@ -228,15 +171,10 @@ you to pick one with `--generator-dir`.
 - **`Cannot find module 'C:Users...'` in Git Bash**: the path was pasted with backslashes
   and without quotes. Use forward slashes or quotes. See the note under
   [Generate the mocks](#generate-the-mocks).
-- **`--prefix /api` turns into `C:/Program Files/Git/api` in Git Bash**: Git Bash rewrites
-  arguments that start with `/`. Write `--prefix api` instead. Both forms work in PowerShell.
-- **Port already in use**: `node mock-server/server.mjs --port 3001`. Also generate with
-  `--port 3001`, so `proxy.conf.json` points to the same port.
-- **`mock-server/proxy.conf.json` doesn't exist**: generate with `--targets server` or
-  without `--targets`. Generators from before this version only wrote it with `--prefix`,
-  so download the tool again if needed.
-- **API calls still reach the real backend**: check the request URL in the browser's
-  Network tab. See [Use the mock server](#use-the-mock-server).
+- **API calls still reach the real backend**: check that the interceptor is registered in
+  `app.config.ts` and that the app runs in development mode (`ng serve`, not a
+  production build).
+- **A `mock-server/` folder from an older version**: it isn't used any more. Delete it.
 
 ## Developing this tool
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,90 +12,37 @@ const write = (file, content) => {
   writeFileSync(file, content.replace(/\r\n/g, '\n'));
 };
 
-const json = (value) => JSON.stringify(value, null, 2) + '\n';
-
-/** Reads user-provided responses from <out>/overrides/<Service>/<operation>.json. */
-export function readOverrides(outDir, routes) {
-  const overrides = new Map();
-  for (const route of routes) {
-    const file = path.join(outDir, 'overrides', route.service, `${route.operation}.json`);
-    if (!existsSync(file)) continue;
-    try {
-      overrides.set(route.id, JSON.parse(readFileSync(file, 'utf8')));
-    } catch (err) {
-      throw new Error(`Invalid JSON in ${file}: ${err.message}`);
-    }
-  }
-  return overrides;
-}
-
-/** Creates <out>/overrides with a short README; used by both targets. */
-export function ensureOverridesFolder(outDir) {
-  const overridesReadme = path.join(outDir, 'overrides', 'README.md');
-  if (!existsSync(overridesReadme)) {
-    write(overridesReadme, OVERRIDES_README);
-  }
-}
-
-export function emitServer(config, routes) {
-  const out = config.out;
-  rmSync(path.join(out, 'responses'), { recursive: true, force: true });
-
-  const index = routes.map(({ body, ...route }) => {
-    const hasBody = route.kind === 'json' || route.kind === 'text';
-    const file = hasBody ? `responses/${route.service}/${route.operation}.json` : null;
-    if (file) write(path.join(out, file), json(body));
-    return { ...route, file };
-  });
-  write(path.join(out, 'routes.json'), json(index));
-
-  write(
-    path.join(out, 'server.mjs'),
-    template('server.mjs')
-      .replace('__DEFAULT_PORT__', String(config.port))
-      .replace('__DEFAULT_DELAY__', String(config.delay)),
-  );
-
-  const target = { target: `http://localhost:${config.port}`, secure: false, changeOrigin: true };
-  const proxy = Object.fromEntries(proxyContexts(config.prefix, routes).map((context) => [context, target]));
-  write(path.join(out, 'proxy.conf.json'), json(proxy));
-  return out;
-}
-
 /**
- * Paths the Angular dev server should forward: the prefix if there is one,
- * otherwise the first segment of every API path (/pet, /store, ...).
+ * Writes the interceptor and its data. The overrides file belongs to the
+ * user: it is only created when it does not exist yet.
  */
-export function proxyContexts(prefix, routes) {
-  if (prefix) return [prefix];
-  const firstSegments = routes
-    .map((route) => route.path.split('/').filter(Boolean)[0])
-    .filter((segment) => segment && !segment.startsWith(':'));
-  return [...new Set(firstSegments)].sort().map((segment) => `/${segment}`);
-}
-
-export function emitInterceptor(config, routes, overrides) {
-  const out = config.interceptorOut;
+export function emitInterceptor(config, routes) {
+  const out = config.out;
   const entries = routes.map((route) => {
-    const body = overrides.has(route.id) ? overrides.get(route.id) : route.body;
     const lines = [
       `id: ${JSON.stringify(route.id)}`,
       `method: ${JSON.stringify(route.method)}`,
       `path: ${JSON.stringify(route.path)}`,
       // A plain string, not a RegExp, so production builds can drop the unused table.
       `pattern: ${JSON.stringify(route.pattern)}`,
-      `status: ${body != null && route.status === 204 ? 200 : route.status}`,
+      `status: ${route.status}`,
       `kind: ${JSON.stringify(route.kind)}`,
-      `body: ${indent(JSON.stringify(body ?? null, null, 2), '    ')}`,
+      `body: ${indent(JSON.stringify(route.body ?? null, null, 2), '    ')}`,
     ];
     return `  {\n${lines.map((l) => `    ${l},`).join('\n')}\n  }`;
   });
+  const ids = routes.map((route) => route.id).sort().map((id) => `\n  | ${JSON.stringify(id)}`).join('');
 
   write(
     path.join(out, 'mock-api.data.ts'),
     `// ${GENERATED}
+export type MockApiRouteId =${ids};
+
+/** Custom response bodies, keyed by <ServiceName>.<methodName>. */
+export type MockApiOverrides = { readonly [K in MockApiRouteId]?: unknown };
+
 export interface MockApiRoute {
-  readonly id: string;
+  readonly id: MockApiRouteId;
   readonly method: string;
   readonly path: string;
   readonly pattern: string;
@@ -107,27 +54,18 @@ export interface MockApiRoute {
 export const MOCK_API_DELAY_MS = ${config.delay};
 
 export const MOCK_API_ROUTES: readonly MockApiRoute[] = [
-${entries.join(',\n')}${entries.length ? ',' : ''}
+${entries.join(',\n')},
 ];
 `,
   );
   write(path.join(out, 'mock-api.interceptor.ts'), template('mock-api.interceptor.ts'));
-  return out;
+
+  const overridesFile = path.join(out, 'mock-api.overrides.ts');
+  const createdOverrides = !existsSync(overridesFile);
+  if (createdOverrides) write(overridesFile, template('mock-api.overrides.ts'));
+  return { out, createdOverrides };
 }
 
 function indent(text, prefix) {
   return text.split('\n').map((line, i) => (i === 0 ? line : prefix + line)).join('\n');
 }
-
-const OVERRIDES_README = `# Custom responses
-
-Put a JSON file here to replace a generated response:
-
-    overrides/<ServiceName>/<methodName>.json
-
-Example: overrides/PetService/getPetById.json
-
-Overrides work for the mock server and for the Angular interceptor.
-The mock server picks up changes immediately. The interceptor needs
-the generator to run again.
-`;

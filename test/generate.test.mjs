@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { sortRoutes, toPattern } from '../src/generate.mjs';
 import { copyFixture, generateInto } from './helpers.mjs';
-
-const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
 test('extracts every operation with method, path and response kind', async () => {
   const project = copyFixture();
@@ -68,52 +66,27 @@ test('output is the same on every run', async () => {
   assert.equal(readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.data.ts'), 'utf8'), first);
 });
 
-test('writes the server files and proxy config', async () => {
-  const project = copyFixture();
-  await generateInto(project, ['--prefix', 'api', '--port', '4100']);
-  const out = path.join(project, 'mock-server');
-  const routes = readJson(path.join(out, 'routes.json'));
-  assert.equal(routes.length, 16);
-  assert.ok(existsSync(path.join(out, 'responses', 'PetService', 'getPetById.json')));
-  assert.ok(!existsSync(path.join(out, 'responses', 'PetService', 'deletePet.json')));
-  assert.ok(readFileSync(path.join(out, 'server.mjs'), 'utf8').includes('?? 4100'));
-  assert.deepEqual(readJson(path.join(out, 'proxy.conf.json')), {
-    '/api': { target: 'http://localhost:4100', secure: false, changeOrigin: true },
-  });
-});
-
-test('without --prefix the proxy config covers the top-level API paths', async () => {
+test('writes the interceptor, its data and an overrides file', async () => {
   const project = copyFixture();
   await generateInto(project);
-  const proxy = readJson(path.join(project, 'mock-server', 'proxy.conf.json'));
-  assert.deepEqual(Object.keys(proxy), ['/pet', '/store', '/user']);
-  assert.equal(proxy['/pet'].target, 'http://localhost:3000');
+  const out = path.join(project, 'src', 'app', 'mock-api');
+  assert.deepEqual(readdirSync(out).sort(), ['mock-api.data.ts', 'mock-api.interceptor.ts', 'mock-api.overrides.ts']);
+  assert.match(readFileSync(path.join(out, 'mock-api.data.ts'), 'utf8'), /\| "PetService\.getPetById"/);
 });
 
-test('keeps overrides, removes stale responses and bakes overrides into the interceptor', async () => {
+test('--out changes the output folder', async () => {
   const project = copyFixture();
-  await generateInto(project);
-  const out = path.join(project, 'mock-server');
-  const stale = path.join(out, 'responses', 'OldService', 'gone.json');
-  writeFileSync(path.join(out, 'overrides', 'README.md'), 'my notes');
-  mkdirSync(path.dirname(stale), { recursive: true });
-  writeFileSync(stale, '{}');
-  mkdirSync(path.join(out, 'overrides', 'PetService'), { recursive: true });
-  writeFileSync(path.join(out, 'overrides', 'PetService', 'getPetById.json'), '{"name":"Rex"}');
-
-  await generateInto(project);
-  assert.ok(!existsSync(stale));
-  assert.equal(readFileSync(path.join(out, 'overrides', 'README.md'), 'utf8'), 'my notes');
-  const data = readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.data.ts'), 'utf8');
-  assert.match(data, /"name": "Rex"/);
+  await generateInto(project, ['--out', 'src/app/core/mocks']);
+  assert.ok(existsSync(path.join(project, 'src', 'app', 'core', 'mocks', 'mock-api.interceptor.ts')));
 });
 
-test('only writes the requested targets', async () => {
+test('never overwrites the overrides file', async () => {
   const project = copyFixture();
-  await generateInto(project, ['--targets', 'interceptor']);
-  assert.ok(!existsSync(path.join(project, 'mock-server', 'server.mjs')));
-  assert.ok(existsSync(path.join(project, 'mock-server', 'overrides', 'README.md')), 'overrides folder exists for the interceptor too');
-  assert.ok(existsSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.interceptor.ts')));
+  await generateInto(project);
+  const overrides = path.join(project, 'src', 'app', 'mock-api', 'mock-api.overrides.ts');
+  writeFileSync(overrides, '// mine');
+  await generateInto(project);
+  assert.equal(readFileSync(overrides, 'utf8'), '// mine');
 });
 
 test('route patterns match any base path and prefer static segments', () => {

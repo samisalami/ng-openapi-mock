@@ -9,40 +9,28 @@ test('uses defaults relative to the project', () => {
   const project = copyFixture();
   const config = resolveConfig(['--project', project]);
   assert.equal(config.baseDir, path.join(project, 'src', 'app'));
-  assert.equal(config.out, path.join(project, 'mock-server'));
-  assert.equal(config.interceptorOut, path.join(project, 'src', 'app', 'mock-api'));
-  assert.deepEqual(config.targets, ['server', 'interceptor']);
+  assert.equal(config.out, path.join(project, 'src', 'app', 'mock-api'));
   assert.equal(config.generatorDir, null);
-  assert.equal(config.port, 3000);
+  assert.equal(config.delay, 0);
 });
 
 test('config file is applied and CLI flags win over it', () => {
   const project = copyFixture();
   writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({
     baseDir: 'src',
-    port: 4000,
-    targets: ['server'],
-    prefix: 'api/',
+    out: 'src/mocks',
+    delay: 200,
   }));
-  const config = resolveConfig(['--project', project, '--port', '5000']);
+  const config = resolveConfig(['--project', project, '--delay', '500']);
   assert.equal(config.baseDir, path.join(project, 'src'));
-  assert.equal(config.port, 5000);
-  assert.deepEqual(config.targets, ['server']);
-  assert.equal(config.prefix, '/api');
+  assert.equal(config.out, path.join(project, 'src', 'mocks'));
+  assert.equal(config.delay, 500);
 });
 
 test('rejects bad values', () => {
   const project = copyFixture();
-  assert.throws(() => resolveConfig(['--project', project, '--targets', 'mobile']), ConfigError);
-  assert.throws(() => resolveConfig(['--project', project, '--port', 'abc']), ConfigError);
+  assert.throws(() => resolveConfig(['--project', project, '--delay', 'abc']), ConfigError);
+  assert.throws(() => resolveConfig(['--project', project, '--targets', 'server']), ConfigError);
   assert.throws(() => resolveConfig(['--project', project, '--unknown']), ConfigError);
   assert.throws(() => resolveConfig(['--project', path.join(project, 'missing')]), ConfigError);
-});
-
-test('explains Git Bash path conversion of --prefix', () => {
-  const project = copyFixture();
-  assert.throws(
-    () => resolveConfig(['--project', project, '--prefix', 'C:/Program Files/Git/api']),
-    /without the leading slash/,
-  );
 });

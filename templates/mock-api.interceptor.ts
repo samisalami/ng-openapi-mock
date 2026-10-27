@@ -2,6 +2,7 @@
 import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { delay, of } from 'rxjs';
 import { MOCK_API_DELAY_MS, MOCK_API_ROUTES } from './mock-api.data';
+import { MOCK_API_OVERRIDES } from './mock-api.overrides';
 
 const mockResponses: HttpInterceptorFn = (req, next) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
@@ -9,8 +10,12 @@ const mockResponses: HttpInterceptorFn = (req, next) => {
   if (!route) {
     return next(req);
   }
-  const body = route.kind === 'blob' ? new Blob([]) : route.body == null ? null : structuredClone(route.body);
-  return of(new HttpResponse({ status: route.status, body, url: req.url })).pipe(delay(MOCK_API_DELAY_MS));
+  const overridden = Object.prototype.hasOwnProperty.call(MOCK_API_OVERRIDES, route.id);
+  const data = overridden ? MOCK_API_OVERRIDES[route.id] : route.body;
+  // Endpoints without a body answer 204, unless an override gives them one.
+  const status = overridden && route.status === 204 ? 200 : route.status;
+  const body = route.kind === 'blob' ? new Blob([]) : data == null ? null : structuredClone(data);
+  return of(new HttpResponse({ status, body, url: req.url })).pipe(delay(MOCK_API_DELAY_MS));
 };
 
 /**
