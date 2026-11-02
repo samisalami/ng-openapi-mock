@@ -320,7 +320,8 @@ you to pick one with `--generator-dir`.
   [Generate the mocks](#generate-the-mocks).
 - **API calls still reach the real backend**: check that the interceptor is registered in
   `app.config.ts` and that the app runs in development mode (`ng serve`, not a
-  production build).
+  production build). In pass-through mode, only calls listed in `mock-api.overrides.ts`
+  are mocked; the console says which mode is active.
 - **A `mock-server/` folder from an older version**: it isn't used any more. Delete it.
 
 ## Developing this tool
