@@ -3,7 +3,9 @@ import { HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/ht
 import { delay, of, tap } from 'rxjs';
 import {
   MOCK_API_DELAY_MS,
+  MOCK_API_GENERATED,
   MOCK_API_LOG,
+  MOCK_API_MODE,
   MOCK_API_PASS_THROUGH,
   MOCK_API_ROUTES,
   type MockApiRoute,
@@ -28,22 +30,37 @@ function logCall(req: HttpRequest<unknown>, res: HttpResponse<unknown>, route: M
   console.groupEnd();
 }
 
+let modeAnnounced = false;
+
 const mockResponses: HttpInterceptorFn = (req, next) => {
+  if (MOCK_API_LOG && !modeAnnounced) {
+    modeAnnounced = true;
+    console.info(MOCK_API_MODE === 'pass-through'
+      ? '[mock] pass-through mode: only calls listed in mock-api.overrides.ts are mocked'
+      : '[mock] mock mode: all API calls are mocked, except pass-throughs in mock-api.overrides.ts');
+  }
   const pathname = new URL(req.url, 'http://localhost').pathname;
   const route = MOCK_API_ROUTES.find((r) => r.method === req.method && new RegExp(r.pattern).test(pathname));
   if (!route) {
     return next(req);
   }
   const startedAt = performance.now();
-  const overridden = Object.prototype.hasOwnProperty.call(MOCK_API_OVERRIDES, route.id);
-  const data = overridden ? MOCK_API_OVERRIDES[route.id] : route.body;
-  if (data === MOCK_API_PASS_THROUGH) {
+  const listed = Object.prototype.hasOwnProperty.call(MOCK_API_OVERRIDES, route.id);
+  const entry = listed ? MOCK_API_OVERRIDES[route.id] : undefined;
+  if (entry === MOCK_API_PASS_THROUGH) {
     if (MOCK_API_LOG) {
       console.log(`%c[mock]%c ${req.method} ${req.urlWithParams} → real API %c${route.id} (pass-through)`,
         'color: #8e44ad; font-weight: bold', 'color: inherit', 'color: gray');
     }
     return next(req);
   }
+  // In pass-through mode, unlisted calls go to the real API without a log line:
+  // they show up in the Network tab.
+  if (!listed && MOCK_API_MODE === 'pass-through') {
+    return next(req);
+  }
+  const overridden = listed && entry !== MOCK_API_GENERATED;
+  const data = overridden ? entry : route.body;
   // Endpoints without a body answer 204, unless an override gives them one.
   const status = overridden && route.status === 204 ? 200 : route.status;
   const body = route.kind === 'blob' ? new Blob([]) : data == null ? null : structuredClone(data);

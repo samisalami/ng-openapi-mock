@@ -44,6 +44,15 @@ export type MockApiOverrides = { readonly [K in MockApiRouteId]?: unknown };
 /** Use as an override value to send that call to the real API instead of mocking it. */
 export const MOCK_API_PASS_THROUGH = '__ng-openapi-mock:pass-through__';
 
+/** Use as an override value to mock that call with the generated data (for pass-through mode). */
+export const MOCK_API_GENERATED = '__ng-openapi-mock:generated__';
+
+/**
+ * mock: every call is mocked unless its override is MOCK_API_PASS_THROUGH.
+ * pass-through: every call goes to the real API unless it has an override.
+ */
+export const MOCK_API_MODE: 'mock' | 'pass-through' = ${JSON.stringify(config.mode)};
+
 export interface MockApiRoute {
   readonly id: MockApiRouteId;
   readonly method: string;

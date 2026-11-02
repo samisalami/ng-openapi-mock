@@ -10,6 +10,7 @@ export const DEFAULTS = Object.freeze({
   baseDir: 'src/app',
   out: 'src/app/mock-api',
   specs: [],
+  mode: 'mock',
   delay: 0,
   log: true,
   arrayLength: 3,
@@ -22,6 +23,7 @@ const OPTIONS = {
   'base-dir': { type: 'string', short: 'b' },
   out: { type: 'string', short: 'o' },
   spec: { type: 'string', short: 's', multiple: true },
+  mode: { type: 'string', short: 'm' },
   delay: { type: 'string' },
   log: { type: 'boolean' },
   'array-length': { type: 'string' },
@@ -75,6 +77,7 @@ export function resolveConfig(argv, cwd = process.cwd()) {
     baseDir: fromProject(pick('base-dir', 'baseDir')),
     out: fromProject(pick('out', 'out')),
     specs: toList(pick('spec', 'specs')).map(fromProject),
+    mode: toMode(pick('mode', 'mode')),
     delay: toInt(pick('delay', 'delay'), 'delay', 0),
     log: toBoolean(pick('log', 'log'), 'log'),
     arrayLength: toInt(pick('array-length', 'arrayLength'), 'array-length', 0),
@@ -86,6 +89,13 @@ function toInt(value, name, min) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < min) throw new ConfigError(`--${name} must be a whole number >= ${min}.`);
   return n;
+}
+
+function toMode(value) {
+  if (value !== 'mock' && value !== 'pass-through') {
+    throw new ConfigError(`Unknown mode "${value}". Use mock or pass-through.`);
+  }
+  return value;
 }
 
 function toList(value) {
@@ -111,6 +121,9 @@ Options:
   -o, --out <dir>              Output folder (default: src/app/mock-api)
   -s, --spec <file|dir>        OpenAPI spec (.yaml, .yml, .json) or a folder of them, used for
                                examples, formats and limits. Repeat for several specs.
+  -m, --mode <mode>            mock: mock every call except pass-throughs (default)
+                               pass-through: send every call to the real API except
+                               the ones listed in mock-api.overrides.ts
       --delay <ms>             Artificial response delay (default: 0)
       --no-log                 Don't log mocked calls to the browser console
       --array-length <n>       Items per generated array (default: 3)

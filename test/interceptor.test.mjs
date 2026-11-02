@@ -12,7 +12,9 @@ import { copyFixture, generateInto } from './helpers.mjs';
 
 let dir;
 let consoleCalls = [];
-const originalConsole = { groupCollapsed: console.groupCollapsed, log: console.log, groupEnd: console.groupEnd };
+const originalConsole = {
+  groupCollapsed: console.groupCollapsed, log: console.log, groupEnd: console.groupEnd, info: console.info,
+};
 
 before(async () => {
   for (const method of Object.keys(originalConsole)) {
@@ -21,11 +23,12 @@ before(async () => {
   const project = copyFixture();
   await generateInto(project);
   dir = path.join(project, 'src', 'app', 'mock-api');
-  writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_PASS_THROUGH } from './mock-api.data';
+  writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'PetService.getPetById': { id: 7, name: 'Rex', photoUrls: [] },
   'PetService.deletePet': { deleted: true },
+  'StoreService.getOrderById': MOCK_API_GENERATED,
   'UserService.loginUser': MOCK_API_PASS_THROUGH,
 };
 `);
@@ -76,16 +79,48 @@ export const x: MockApiOverrides = { 'PetService.getPetByld': {} };
 });
 
 // The query string forces a fresh module, since the dev-mode check runs at load time.
-async function loadInterceptor(query = '') {
+async function loadInterceptor(query = '', from = dir) {
   for (const name of ['mock-api.data', 'mock-api.overrides', 'mock-api.interceptor']) {
-    const source = readFileSync(path.join(dir, `${name}.ts`), 'utf8');
+    const source = readFileSync(path.join(from, `${name}.ts`), 'utf8');
     const { outputText } = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
     });
-    writeFileSync(path.join(dir, `${name}.mjs`), outputText.replace(/'(\.\/mock-api\.[a-z]+)'/g, "'$1.mjs'"));
+    writeFileSync(path.join(from, `${name}.mjs`), outputText.replace(/'(\.\/mock-api\.[a-z]+)'/g, "'$1.mjs'"));
   }
-  return import(pathToFileURL(path.join(dir, 'mock-api.interceptor.mjs')).href + query);
+  return import(pathToFileURL(path.join(from, 'mock-api.interceptor.mjs')).href + query);
 }
+
+test('pass-through mode only mocks the calls listed in the overrides file', async () => {
+  const project = copyFixture();
+  await generateInto(project, ['--mode', 'pass-through']);
+  const modeDir = path.join(project, 'src', 'app', 'mock-api');
+  writeFileSync(path.join(modeDir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+
+export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  'PetService.getPetById': { id: 1, name: 'Listed', photoUrls: [] },
+  'StoreService.getInventory': MOCK_API_GENERATED,
+  'UserService.loginUser': MOCK_API_PASS_THROUGH,
+};
+`);
+  assert.deepEqual(typeErrors([path.join(modeDir, 'mock-api.interceptor.ts')]), []);
+
+  const { mockApiInterceptor } = await loadInterceptor('', modeDir);
+  const real = new HttpResponse({ status: 200, body: 'real backend' });
+  const call = (method, url) => firstValueFrom(mockApiInterceptor(new HttpRequest(method, url), () => of(real)));
+  consoleCalls = [];
+
+  assert.deepEqual((await call('GET', '/api/pet/1')).body, { id: 1, name: 'Listed', photoUrls: [] });
+  assert.deepEqual(Object.keys((await call('GET', '/api/store/inventory')).body), ['key1', 'key2'],
+    'MOCK_API_GENERATED mocks with the generated data');
+  assert.equal(await call('GET', '/api/store/order/1'), real, 'unlisted calls go to the real API');
+  assert.equal(await call('GET', '/api/user/login'), real);
+
+  const [, info] = consoleCalls.find(([method]) => method === 'info');
+  assert.match(info, /pass-through mode/);
+  assert.equal(consoleCalls.filter(([method]) => method === 'info').length, 1, 'the mode is announced once');
+  const lines = consoleCalls.filter(([m]) => m === 'groupCollapsed' || m === 'log').map(([, text]) => text).join('\n');
+  assert.ok(!lines.includes('/store/order/1'), 'unlisted pass-throughs are not logged');
+});
 
 test('answers mocked routes and passes the rest through', async () => {
   const { mockApiInterceptor } = await loadInterceptor();

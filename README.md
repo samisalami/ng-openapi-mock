@@ -153,40 +153,63 @@ configuration, the mocks are off there too.
 
 ## Custom responses and real API calls
 
-`src/app/mock-api/mock-api.overrides.ts` decides per call what happens instead of the
-generated mock. The key is the service class and method of the generated API client. The
-value is either:
+`src/app/mock-api/mock-api.overrides.ts` decides per call what happens. The key is the
+service class and method of the generated API client. The value is one of:
 
-- **a response body**, to replace the generated response
-- **`MOCK_API_PASS_THROUGH`**, to not mock that call: it goes to the real API as if the
-  interceptor weren't there
+| Value | The call is… |
+| --- | --- |
+| a response body, e.g. `{ id: 1, name: 'Rex' }` | mocked with that body |
+| `MOCK_API_GENERATED` | mocked with the generated data |
+| `MOCK_API_PASS_THROUGH` | sent to the real API, as if the interceptor weren't there |
+
+What happens to calls that **aren't** listed depends on the mode you generate with:
+
+| Mode | Calls not in the overrides file | Typical use |
+| --- | --- | --- |
+| `mock` (default) | mocked with the generated data | no backend, or only a few endpoints should be real |
+| `pass-through` | sent to the real API | a working backend, and only a few endpoints should be mocked |
+
+Choose the mode with `--mode pass-through`, or `"mode": "pass-through"` in the
+[config file](#options). Switching modes needs one run of the generator; your overrides
+file stays as it is.
+
+**Mock mode**, mock everything except login:
 
 ```ts
-import { MockApiOverrides, MOCK_API_PASS_THROUGH } from './mock-api.data';
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  // custom responses
-  'PetService.getPetById': { id: 1, name: 'Rex', photoUrls: [] },
-  'StoreService.getInventory': { available: 12, sold: 3 },
+  'PetService.getPetById': { id: 1, name: 'Rex', photoUrls: [] },  // custom response
+  'UserService.loginUser': MOCK_API_PASS_THROUGH,                    // real API
+};
+```
 
-  // these go to the real API
-  'UserService.loginUser': MOCK_API_PASS_THROUGH,
-  'UserService.logoutUser': MOCK_API_PASS_THROUGH,
+**Pass-through mode**, use the real API except for two endpoints that aren't ready yet:
+
+```ts
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+
+export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  'StoreService.getInventory': { available: 12, sold: 3 },  // custom response
+  'StoreService.placeOrder': MOCK_API_GENERATED,            // generated data
 };
 ```
 
 - Your editor suggests all available keys, and a typo is a compile error.
 - The app picks up changes right away. You don't need to run the generator again.
 - The generator creates this file once and never overwrites it.
-- Pass-through calls show up in the Network tab like any real request. If
-  [logging](#see-mocked-calls-in-the-console) is on, the console also shows a
-  `[mock] … → real API` line for them, so you can see the setting took effect.
+- Calls that go to the real API show up in the Network tab like any real request. If
+  [logging](#see-mocked-calls-in-the-console) is on, calls set to `MOCK_API_PASS_THROUGH`
+  also get a `[mock] … → real API` line in the console, so you can see the setting took
+  effect. Unlisted calls in pass-through mode don't, to keep the console readable.
+- With logging on, the console also says which mode is active when the first API call is
+  made.
 - Endpoints that return nothing respond with `204 No Content`. An override for one of them
   is sent as `200` with your body.
 
 > [!NOTE]
-> If your overrides file was created by an older version, add `MOCK_API_PASS_THROUGH` to
-> its import line as shown above.
+> If your overrides file was created by an older version, add `MOCK_API_GENERATED` and
+> `MOCK_API_PASS_THROUGH` to its import line as shown above, as far as you use them.
 
 If an endpoint is removed from the API, the generator removes its key, and `ng serve`
 shows an error for your override until you delete it.
@@ -253,6 +276,7 @@ in the project root (command line wins).
 | `--generator-dir <dir>` | `generatorDir` | found automatically | The `.openapi-generator` folder |
 | `--base-dir <dir>` | `baseDir` | `src/app` | Folder the paths in `FILES` are relative to |
 | `--out <dir>` | `out` | `src/app/mock-api` | Where the files are written |
+| `--mode <mode>` | `mode` | `mock` | `mock` or `pass-through`, see [modes](#custom-responses-and-real-api-calls) |
 | `--spec <file or folder>` | `specs` (list) | – | [OpenAPI specs](#better-mock-data-from-openapi-specs) for better mock data. Repeat for several |
 | `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
 | `--no-log` | `log` | `true` | Turn off logging mocked calls to the browser console |
@@ -268,6 +292,7 @@ Paths are relative to the project root. Example config file:
   "baseDir": "src/app",
   "out": "src/app/core/mock-api",
   "specs": ["../api-specs/orders.yaml", "../api-specs/customers.yaml"],
+  "mode": "pass-through",
   "delay": 300
 }
 ```
