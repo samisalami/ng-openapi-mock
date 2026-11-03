@@ -82,12 +82,13 @@ All options work the same with both forms, for example `ng-openapi-mock --no-log
 > accepts both forms as they are.
 
 That's all you need in most projects. The tool finds the `.openapi-generator` folder,
-reads the generated services and models, and writes three files into `src/app/mock-api/`:
+reads the generated services and models, and writes four files into `src/app/mock-api/`:
 
 | File | What it is | On the next run |
 | --- | --- | --- |
 | `mock-api.interceptor.ts` | the interceptor you register in the app | replaced |
 | `mock-api.data.ts` | the generated mock responses | replaced |
+| `mock-api.routes.ts` | every API call, to look up keys for your overrides | replaced |
 | `mock-api.overrides.ts` | your [custom responses and pass-throughs](#custom-responses-and-real-api-calls) | **kept**, never overwritten |
 
 Run the command again whenever the API client is regenerated.
@@ -178,7 +179,7 @@ file stays as it is.
 **Mock mode**, mock everything except login:
 
 ```ts
-import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'GET /pet/{petId}': { id: 1, name: 'Rex', photoUrls: [] },  // custom response
@@ -189,7 +190,7 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 **Pass-through mode**, use the real API except for two endpoints that aren't ready yet:
 
 ```ts
-import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'GET /store/inventory': { available: 12, sold: 3 },  // custom response
@@ -197,23 +198,22 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 };
 ```
 
-- When the generator creates the file, it lists every API call in it, commented out and
-  grouped by service, with the method name and the response type:
+- Your editor suggests all available keys and shows the service method and response type
+  of each, and a typo is a compile error.
+- All keys are listed in `mock-api.routes.ts`, grouped by service. The generator updates
+  that file on every run, so new endpoints show up there and in the suggestions right
+  away:
 
   ```ts
   // PetService
-  // 'GET /pet/{petId}':           MOCK_API_PASS_THROUGH,  // getPetById → Pet
-  // 'GET /pet/findByStatus':      MOCK_API_PASS_THROUGH,  // findPetsByStatus → Pet[]
+  /** PetService.getPetById → 200 Pet */
+  readonly "GET /pet/{petId}"?: unknown;
+  /** PetService.findPetsByStatus → 200 Pet[] */
+  readonly "GET /pet/findByStatus"?: unknown;
   ```
 
-  Uncomment a line and change its value. The value already in the list fits the mode the
-  file was created in: `MOCK_API_PASS_THROUGH` in mock mode, `MOCK_API_GENERATED` in
-  pass-through mode.
-- Your editor suggests all available keys, and a typo is a compile error. Calls added to
-  the API later aren't in the list, but your editor suggests them too.
 - The app picks up changes right away. You don't need to run the generator again.
-- The generator creates this file once and never overwrites it. To get the list of calls
-  again, move your entries out, delete the file and run the generator.
+- The generator creates this file once and never overwrites it.
 - Calls that go to the real API show up in the Network tab like any real request. If
   [logging](#see-mocked-calls-in-the-console) is on, calls set to `MOCK_API_PASS_THROUGH`
   also get a `[mock] … → real API` line in the console, so you can see the setting took
@@ -224,10 +224,11 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
   is sent as `200` with your body.
 
 > [!NOTE]
-> If your overrides file was created by an older version, add `MOCK_API_GENERATED` and
-> `MOCK_API_PASS_THROUGH` to its import line as shown above, as far as you use them. Its
-> keys like `'PetService.getPetById'` (service and method name) keep working, and you can
-> mix them with the new keys.
+> If your overrides file was created by an older version, it keeps working as it is: its
+> import from `./mock-api.data` and its keys like `'PetService.getPetById'` (service and
+> method name) are still supported, and you can mix them with the new keys. Add
+> `MOCK_API_GENERATED` and `MOCK_API_PASS_THROUGH` to its import line as far as you use
+> them.
 
 If an endpoint is removed from the API, the generator removes its key, and `ng serve`
 shows an error for your override until you delete it.

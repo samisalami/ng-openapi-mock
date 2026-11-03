@@ -8,9 +8,9 @@
 //   (only needed in pass-through mode, where unlisted calls aren't mocked)
 // - MOCK_API_PASS_THROUGH, to send that call to the real API
 //
-// Every API call is listed below, commented out. Uncomment a line and change
-// its value. Calls added to the API later aren't listed, but your editor
-// suggests them too.
+// Every API call is listed in mock-api.routes.ts, which is updated each time
+// you generate. Your editor suggests the keys from there and shows the
+// service method and response type of each.
 //
 // Example for mock mode (the default): every call is mocked, the entries
 // change single responses or send single calls to the real API.
@@ -61,10 +61,9 @@
 //   };
 //
 // The routes above are examples. Bodies are not type-checked, so give them
-// the shape your app expects: the type after → in the list below helps.
+// the shape your app expects: the response type in mock-api.routes.ts helps.
 //
-import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  // @routes
 };

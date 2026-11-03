@@ -66,12 +66,12 @@ test('output is the same on every run', async () => {
   assert.equal(readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.data.ts'), 'utf8'), first);
 });
 
-test('writes the interceptor, its data and an overrides file', async () => {
+test('writes the interceptor, its data, the routes and an overrides file', async () => {
   const project = copyFixture();
   await generateInto(project);
   const out = path.join(project, 'src', 'app', 'mock-api');
-  assert.deepEqual(readdirSync(out).sort(), ['mock-api.data.ts', 'mock-api.interceptor.ts', 'mock-api.overrides.ts']);
-  assert.match(readFileSync(path.join(out, 'mock-api.data.ts'), 'utf8'), /\| "PetService\.getPetById"/);
+  assert.deepEqual(readdirSync(out).sort(), ['mock-api.data.ts', 'mock-api.interceptor.ts', 'mock-api.overrides.ts', 'mock-api.routes.ts']);
+  assert.match(readFileSync(path.join(out, 'mock-api.routes.ts'), 'utf8'), /\| "PetService\.getPetById"/);
 });
 
 test('--out changes the output folder', async () => {

@@ -69,25 +69,37 @@ test('a freshly created overrides file type-checks', async () => {
   assert.deepEqual(typeErrors([path.join(project, 'src', 'app', 'mock-api', 'mock-api.interceptor.ts')]), []);
 });
 
-test('the created overrides file lists every call, and uncommented lines type-check', async () => {
+test('the routes file lists every call with its service method and response type', async () => {
   const project = copyFixture();
   const { routes } = await generateInto(project);
-  const modeDir = path.join(project, 'src', 'app', 'mock-api');
-  const file = path.join(modeDir, 'mock-api.overrides.ts');
-  const source = readFileSync(file, 'utf8');
-  for (const route of routes) assert.ok(source.includes(`// '${route.key}':`), route.key);
-  assert.match(source, /\/\/ PetService\n {2}\/\/ 'POST \/pet': +MOCK_API_PASS_THROUGH, {2}\/\/ addPet → Pet\n/);
-  assert.match(source, /'DELETE \/pet\/\{petId\}': +MOCK_API_PASS_THROUGH, {2}\/\/ deletePet → no body/);
-
-  writeFileSync(file, source.replace(/\/\/ ('(?:GET|POST|PUT|DELETE) [^']+':)/g, '$1'));
-  assert.deepEqual(typeErrors([path.join(modeDir, 'mock-api.interceptor.ts')]), []);
+  const source = readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.routes.ts'), 'utf8');
+  for (const route of routes) assert.ok(source.includes(`readonly ${JSON.stringify(route.key)}?: unknown;`), route.key);
+  assert.match(source, /\/\/ PetService\n {2}\/\*\* PetService\.addPet → 200 Pet \*\/\n {2}readonly "POST \/pet"\?: unknown;/);
+  assert.match(source, /\/\*\* PetService\.deletePet → 204 no body \*\/\n {2}readonly "DELETE \/pet\/\{petId\}"/);
 });
 
-test('in pass-through mode the listed calls default to the generated data', async () => {
+// What the editor shows next to a key while completing it in the overrides file.
+test('override keys carry the documentation from the routes file', () => {
+  const file = path.join(dir, 'mock-api.overrides.ts');
+  const program = ts.createProgram({ rootNames: [file], options: { strict: true, noEmit: true } });
+  const checker = program.getTypeChecker();
+  const declaration = program.getSourceFile(file).statements
+    .find((s) => ts.isVariableStatement(s)).declarationList.declarations[0];
+  const type = checker.getTypeAtLocation(declaration.type);
+  const doc = (key) => ts.displayPartsToString(checker.getPropertyOfType(type, key).getDocumentationComment(checker));
+  assert.equal(doc('GET /pet/{petId}'), 'PetService.getPetById → 200 Pet');
+  assert.equal(doc('POST /store/order'), 'StoreService.placeOrder → 200 Order');
+});
+
+test('the routes file is updated on every run, the overrides file is kept', async () => {
   const project = copyFixture();
-  await generateInto(project, ['--mode', 'pass-through']);
-  const source = readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.overrides.ts'), 'utf8');
-  assert.match(source, /\/\/ 'GET \/store\/inventory': +MOCK_API_GENERATED,/);
+  await generateInto(project);
+  const out = path.join(project, 'src', 'app', 'mock-api');
+  writeFileSync(path.join(out, 'mock-api.routes.ts'), '// outdated');
+  writeFileSync(path.join(out, 'mock-api.overrides.ts'), '// mine');
+  await generateInto(project);
+  assert.match(readFileSync(path.join(out, 'mock-api.routes.ts'), 'utf8'), /"GET \/pet\/\{petId\}"/);
+  assert.equal(readFileSync(path.join(out, 'mock-api.overrides.ts'), 'utf8'), '// mine');
 });
 
 test('the overrides file rejects unknown keys', () => {
@@ -102,7 +114,7 @@ export const x: MockApiOverrides = { 'PetService.getPetByld': {} };
 
 // The query string forces a fresh module, since the dev-mode check runs at load time.
 async function loadInterceptor(query = '', from = dir) {
-  for (const name of ['mock-api.data', 'mock-api.overrides', 'mock-api.interceptor']) {
+  for (const name of ['mock-api.routes', 'mock-api.data', 'mock-api.overrides', 'mock-api.interceptor']) {
     const source = readFileSync(path.join(from, `${name}.ts`), 'utf8');
     const { outputText } = ts.transpileModule(source, {
       compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
@@ -116,7 +128,7 @@ test('pass-through mode only mocks the calls listed in the overrides file', asyn
   const project = copyFixture();
   await generateInto(project, ['--mode', 'pass-through']);
   const modeDir = path.join(project, 'src', 'app', 'mock-api');
-  writeFileSync(path.join(modeDir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
+  writeFileSync(path.join(modeDir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'GET /pet/{petId}': { id: 1, name: 'Listed', photoUrls: [] },

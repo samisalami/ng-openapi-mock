@@ -13,8 +13,8 @@ const write = (file, content) => {
 };
 
 /**
- * Writes the interceptor and its data. The overrides file belongs to the
- * user: it is only created when it does not exist yet.
+ * Writes the interceptor, its data and the list of routes. The overrides file
+ * belongs to the user: it is only created when it does not exist yet.
  */
 export function emitInterceptor(config, routes) {
   const out = config.out;
@@ -32,28 +32,15 @@ export function emitInterceptor(config, routes) {
     ];
     return `  {\n${lines.map((l) => `    ${l},`).join('\n')}\n  }`;
   });
-  const union = (values) => [...values].sort().map((v) => `\n  | ${JSON.stringify(v)}`).join('');
-
+  write(path.join(out, 'mock-api.routes.ts'), routesFile(routes));
   write(
     path.join(out, 'mock-api.data.ts'),
     `// ${GENERATED}
-/** "<METHOD> <path>" of every API call, e.g. "GET /pet/{petId}". */
-export type MockApiRouteKey =${union(routes.map((r) => r.key))};
+import type { MockApiRouteId, MockApiRouteKey } from './mock-api.routes';
 
-/** <ServiceName>.<methodName> of every API call. */
-export type MockApiRouteId =${union(routes.map((r) => r.id))};
-
-/**
- * Custom responses, keyed by "<METHOD> <path>".
- * <ServiceName>.<methodName> keys from older overrides files still work.
- */
-export type MockApiOverrides = { readonly [K in MockApiRouteKey | MockApiRouteId]?: unknown };
-
-/** Use as an override value to send that call to the real API instead of mocking it. */
-export const MOCK_API_PASS_THROUGH = '__ng-openapi-mock:pass-through__';
-
-/** Use as an override value to mock that call with the generated data (for pass-through mode). */
-export const MOCK_API_GENERATED = '__ng-openapi-mock:generated__';
+// Older overrides files import these from here.
+export { MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
+export type { MockApiOverrides, MockApiRouteId, MockApiRouteKey } from './mock-api.routes';
 
 /**
  * mock: every call is mocked unless its override is MOCK_API_PASS_THROUGH.
@@ -86,26 +73,47 @@ ${entries.join(',\n')},
 
   const overridesFile = path.join(out, 'mock-api.overrides.ts');
   const createdOverrides = !existsSync(overridesFile);
-  if (createdOverrides) {
-    write(overridesFile, template('mock-api.overrides.ts').replace('  // @routes\n', routeList(config.mode, routes)));
-  }
+  if (createdOverrides) write(overridesFile, template('mock-api.overrides.ts'));
   return { out, createdOverrides };
 }
 
-// Every call as a commented-out entry, grouped by service: uncomment a line and
-// change its value. The default value fits the mode the file is created in.
-function routeList(mode, routes) {
-  const value = mode === 'pass-through' ? 'MOCK_API_GENERATED' : 'MOCK_API_PASS_THROUGH';
-  const keyText = (r) => `${JSON.stringify(r.key).replace(/^"|"$/g, "'")}:`;
-  const width = Math.max(...routes.map((r) => keyText(r).length));
+// Every call as a documented property, grouped by service, so the editor shows
+// the method name and response type while completing an override key.
+function routesFile(routes) {
+  const union = (values) => [...values].sort().map((v) => `\n  | ${JSON.stringify(v)}`).join('');
   const services = [...new Set(routes.map((r) => r.service))].sort();
-  return services.map((service) => {
+  const members = services.map((service) => {
     const lines = routes
       .filter((r) => r.service === service)
       .sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method))
-      .map((r) => `  // ${keyText(r).padEnd(width)} ${value},  // ${r.operation} → ${r.typeName ?? 'no body'}\n`);
+      .map((r) => `  /** ${r.id} → ${r.status} ${r.typeName ?? 'no body'} */\n  readonly ${JSON.stringify(r.key)}?: unknown;\n`);
     return `  // ${service}\n${lines.join('')}`;
-  }).join('\n');
+  });
+  return `// ${GENERATED}
+// Every API call of the generated client. Use the keys in mock-api.overrides.ts.
+
+/** Use as an override value to send that call to the real API instead of mocking it. */
+export const MOCK_API_PASS_THROUGH = '__ng-openapi-mock:pass-through__';
+
+/** Use as an override value to mock that call with the generated data (for pass-through mode). */
+export const MOCK_API_GENERATED = '__ng-openapi-mock:generated__';
+
+/** Every API call as "<METHOD> <path>", with its service method and response. */
+export interface MockApiRoutes {
+${members.join('\n')}}
+
+/** "<METHOD> <path>" of every API call, e.g. "GET /pet/{petId}". */
+export type MockApiRouteKey = keyof MockApiRoutes;
+
+/** <ServiceName>.<methodName> of every API call. */
+export type MockApiRouteId =${union(routes.map((r) => r.id))};
+
+/**
+ * Custom responses, keyed by "<METHOD> <path>".
+ * <ServiceName>.<methodName> keys from older overrides files still work.
+ */
+export type MockApiOverrides = MockApiRoutes & { readonly [K in MockApiRouteId]?: unknown };
+`;
 }
 
 function indent(text, prefix) {
