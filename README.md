@@ -122,6 +122,53 @@ translations, endpoints without a mock) goes through as normal. It doesn't matte
 address the API client sends its calls to: `/api/pet/5`, `/pet/5` and
 `https://api.example.com/v1/pet/5` all get the `/pet/{petId}` mock.
 
+### Commit the registration for the whole team
+
+If only some developers use the mocks and `src/app/mock-api/` is in `.gitignore`, the
+import above breaks the app for everyone else. Instead, import the interceptor through
+an alias that falls back to a small stub you commit. Developers who generated the mocks
+get the mocks; everyone else gets the stub, which sends every request to the real API.
+
+Set it up once and commit the result:
+
+1. Generate with `--stub`:
+
+   ```bash
+   ng-openapi-mock --stub
+   ```
+
+   This creates `src/app/mock-api.stub.ts` (next to the `mock-api` folder, so it isn't
+   ignored) and prints the line to add to your `tsconfig.json`:
+
+   ```json
+   "paths": {
+     "@mock-api": ["./src/app/mock-api/mock-api.interceptor.ts", "./src/app/mock-api.stub.ts"]
+   }
+   ```
+
+   The generated interceptor comes first, the stub second: the first file that exists is
+   used. If `"paths"` already exists, add just the `"@mock-api"` line to it.
+2. Import the interceptor from the alias in `app.config.ts`:
+
+   ```ts
+   import { mockApiInterceptor } from '@mock-api';
+   ```
+
+3. Commit `mock-api.stub.ts`, `tsconfig.json` and `app.config.ts`. Keep
+   `src/app/mock-api/` in `.gitignore`.
+
+Run with `--stub` again any time to check the setup: it prints nothing more once the
+alias is right, and never overwrites the stub. Developers who use the mocks don't need
+`--stub` for their normal runs.
+
+> [!IMPORTANT]
+> Restart `ng serve` after you generate the mocks for the first time, or after deleting
+> the `mock-api` folder. A running `ng serve` keeps using the file it found when it
+> started. Later runs of the generator don't need a restart.
+
+Production builds and CI never have the mocks, so they use the stub. A local production
+build with the mocks works too: the interceptor is [off in production](#only-in-development-mode).
+
 ### See mocked calls in the console
 
 Mocked calls never reach the network, so they **don't show up in the browser's Network
@@ -299,6 +346,7 @@ in the project root (command line wins).
 | `--spec <file or folder>` | `specs` (list) | – | [OpenAPI specs](#better-mock-data-from-openapi-specs) for better mock data. Repeat for several |
 | `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
 | `--no-log` | `log` | `true` | Turn off logging mocked calls to the browser console |
+| `--stub` | `stub` | `false` | Create the stub and check the alias for [team setups](#commit-the-registration-for-the-whole-team) |
 | `--array-length <n>` | `arrayLength` | `3` | Number of items in generated lists |
 | `--max-depth <n>` | `maxDepth` | `4` | How deep nested objects are filled |
 | `--config <file>` | – | `ng-openapi-mock.config.json` | Use a different config file |
@@ -316,7 +364,9 @@ Paths are relative to the project root. Example config file:
 }
 ```
 
-If you change `out`, import the interceptor from that folder in `app.config.ts`.
+If you change `out`, import the interceptor from that folder in `app.config.ts`. With
+the [team setup](#commit-the-registration-for-the-whole-team), run with `--stub` once
+more to get the updated alias.
 
 If your project has more than one `.openapi-generator` folder, the tool lists them and asks
 you to pick one with `--generator-dir`.
@@ -327,6 +377,14 @@ you to pick one with `--generator-dir`.
   your `PATH` yet, or the terminal was opened before you changed it. Check the
   [PATH setup](#optional-run-it-as-ng-openapi-mock) and reopen the terminal.
 - **"TypeScript was not found"**: run `npm install` in the Angular project first.
+- **"Cannot find module '@mock-api'"**: the alias from the
+  [team setup](#commit-the-registration-for-the-whole-team) is missing or in the wrong
+  tsconfig. Run `ng-openapi-mock --stub`: it says where the line belongs. If
+  `tsconfig.app.json` has its own `"paths"`, the alias has to go there. Restart `ng serve`
+  after changing a tsconfig.
+- **Mocks don't kick in, or the app still mocks after deleting the mocks**: with the team
+  setup, restart `ng serve` after generating the mocks for the first time or deleting the
+  `mock-api` folder.
 - **"js-yaml was not found"**: same as above. If the project really doesn't have it, use
   JSON exports of the specs instead.
 - **"matched none of the app's API calls"**: that spec describes a different API than the

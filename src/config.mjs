@@ -13,6 +13,7 @@ export const DEFAULTS = Object.freeze({
   mode: 'mock',
   delay: 0,
   log: true,
+  stub: false,
   arrayLength: 3,
   maxDepth: 4,
 });
@@ -26,6 +27,7 @@ const OPTIONS = {
   mode: { type: 'string', short: 'm' },
   delay: { type: 'string' },
   log: { type: 'boolean' },
+  stub: { type: 'boolean' },
   'array-length': { type: 'string' },
   'max-depth': { type: 'string' },
   config: { type: 'string', short: 'c' },
@@ -80,6 +82,7 @@ export function resolveConfig(argv, cwd = process.cwd()) {
     mode: toMode(pick('mode', 'mode')),
     delay: toInt(pick('delay', 'delay'), 'delay', 0),
     log: toBoolean(pick('log', 'log'), 'log'),
+    stub: toBoolean(pick('stub', 'stub'), 'stub'),
     arrayLength: toInt(pick('array-length', 'arrayLength'), 'array-length', 0),
     maxDepth: toInt(pick('max-depth', 'maxDepth'), 'max-depth', 1),
   };
@@ -126,6 +129,9 @@ Options:
                                the ones listed in mock-api.overrides.ts
       --delay <ms>             Artificial response delay (default: 0)
       --no-log                 Don't log mocked calls to the browser console
+      --stub                   Create mock-api.stub.ts next to the output folder and check
+                               the @mock-api alias in tsconfig, so the interceptor can be
+                               registered in committed code
       --array-length <n>       Items per generated array (default: 3)
       --max-depth <n>          How deep nested objects are filled (default: 4)
   -c, --config <file>          Config file (default: ${CONFIG_FILE_NAME} in the project)

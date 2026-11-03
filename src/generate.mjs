@@ -5,6 +5,7 @@ import { locateGeneratorDir, readGeneratorVersion, resolveSourceFiles, SourceErr
 import { createMockFactory } from './mock-data.mjs';
 import { loadTypeScript } from './project-modules.mjs';
 import { loadSpecs } from './spec.mjs';
+import { setupStub } from './stub.mjs';
 
 export async function generate(config, log = console.log) {
   const rel = (p) => path.relative(config.projectDir, p) || '.';
@@ -70,6 +71,11 @@ export async function generate(config, log = console.log) {
   }
   log(`Generated ${routes.length} mocked routes from ${files.length} files into ${rel(out)}`);
   if (createdOverrides) log(`Created ${rel(path.join(out, 'mock-api.overrides.ts'))} for your custom responses`);
+  if (config.stub) {
+    const { stubFile, createdStub, hint } = setupStub(ts, config);
+    if (createdStub) log(`Created ${rel(stubFile)}, commit it`);
+    for (const line of hint) log(line);
+  }
   return { routes, warnings, files };
 }
 
