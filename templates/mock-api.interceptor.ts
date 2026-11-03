@@ -18,7 +18,7 @@ function logCall(req: HttpRequest<unknown>, res: HttpResponse<unknown>, route: M
   const ms = Math.round(performance.now() - startedAt);
   const source = overridden ? 'override' : 'generated';
   console.groupCollapsed(
-    `%c[mock]%c ${req.method} ${req.urlWithParams} → ${res.status} %c${route.id} (${source}, ${ms} ms)`,
+    `%c[mock]%c ${req.method} ${req.urlWithParams} → ${res.status} %c'${route.key}' (${source}, ${ms} ms)`,
     'color: #8e44ad; font-weight: bold',
     'color: inherit',
     'color: gray',
@@ -45,11 +45,13 @@ const mockResponses: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
   const startedAt = performance.now();
-  const listed = Object.prototype.hasOwnProperty.call(MOCK_API_OVERRIDES, route.id);
-  const entry = listed ? MOCK_API_OVERRIDES[route.id] : undefined;
+  // Older overrides files use <ServiceName>.<methodName> keys.
+  const key = [route.key, route.id].find((k) => Object.prototype.hasOwnProperty.call(MOCK_API_OVERRIDES, k));
+  const listed = key !== undefined;
+  const entry = listed ? MOCK_API_OVERRIDES[key] : undefined;
   if (entry === MOCK_API_PASS_THROUGH) {
     if (MOCK_API_LOG) {
-      console.log(`%c[mock]%c ${req.method} ${req.urlWithParams} → real API %c${route.id} (pass-through)`,
+      console.log(`%c[mock]%c ${req.method} ${req.urlWithParams} → real API %c'${route.key}' (pass-through)`,
         'color: #8e44ad; font-weight: bold', 'color: inherit', 'color: gray');
     }
     return next(req);

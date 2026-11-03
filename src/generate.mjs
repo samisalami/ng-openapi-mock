@@ -38,6 +38,8 @@ export async function generate(config, log = console.log) {
     }
     return {
       id: op.id,
+      key: routeKey(op.method, op.path),
+      typeName: op.kind === 'none' ? null : typeName(checker, op.type),
       service: op.service,
       operation: op.operation,
       method: op.method,
@@ -69,6 +71,17 @@ export async function generate(config, log = console.log) {
   log(`Generated ${routes.length} mocked routes from ${files.length} files into ${rel(out)}`);
   if (createdOverrides) log(`Created ${rel(path.join(out, 'mock-api.overrides.ts'))} for your custom responses`);
   return { routes, warnings, files };
+}
+
+/** The override key of a route, e.g. "GET /pet/{petId}". */
+export function routeKey(method, routePath) {
+  return `${method} ${routePath.replace(/:([^/]+)/g, '{$1}')}`;
+}
+
+function typeName(checker, type) {
+  if (!type) return null;
+  const name = checker.typeToString(type);
+  return name.length > 60 ? `${name.slice(0, 57)}...` : name;
 }
 
 // Matches the route at the end of the request path, so it works no matter

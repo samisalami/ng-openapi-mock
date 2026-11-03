@@ -128,11 +128,12 @@ tab**. Instead, each one is logged to the browser console (F12 → **Console**) 
 response arrives:
 
 ```
-[mock] GET /api/pet/7?details=true → 200 PetService.getPetById (generated, 0 ms)
+[mock] GET /api/pet/7?details=true → 200 'GET /pet/{petId}' (generated, 0 ms)
 ```
 
-Click a line to open it and see the request body and the response body. Each line also
-shows whether the response came from your [overrides](#custom-responses-and-real-api-calls) or from the
+Click a line to open it and see the request body and the response body. The quoted part
+is the key for that call in the [overrides file](#custom-responses-and-real-api-calls),
+ready to copy. Each line also shows whether the response came from your [overrides](#custom-responses-and-real-api-calls) or from the
 generated data, and how long it took (including `--delay`). Calls that aren't mocked go
 to the network as usual and show up in the Network tab.
 
@@ -154,7 +155,8 @@ configuration, the mocks are off there too.
 ## Custom responses and real API calls
 
 `src/app/mock-api/mock-api.overrides.ts` decides per call what happens. The key is the
-service class and method of the generated API client. The value is one of:
+HTTP method and path of the call, with the path as in the API spec, e.g.
+`'GET /pet/{petId}'`. The base path of your API isn't part of it. The value is one of:
 
 | Value | The call is… |
 | --- | --- |
@@ -179,8 +181,8 @@ file stays as it is.
 import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  'PetService.getPetById': { id: 1, name: 'Rex', photoUrls: [] },  // custom response
-  'UserService.loginUser': MOCK_API_PASS_THROUGH,                    // real API
+  'GET /pet/{petId}': { id: 1, name: 'Rex', photoUrls: [] },  // custom response
+  'GET /user/login': MOCK_API_PASS_THROUGH,                     // real API
 };
 ```
 
@@ -190,14 +192,28 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  'StoreService.getInventory': { available: 12, sold: 3 },  // custom response
-  'StoreService.placeOrder': MOCK_API_GENERATED,            // generated data
+  'GET /store/inventory': { available: 12, sold: 3 },  // custom response
+  'POST /store/order': MOCK_API_GENERATED,             // generated data
 };
 ```
 
-- Your editor suggests all available keys, and a typo is a compile error.
+- When the generator creates the file, it lists every API call in it, commented out and
+  grouped by service, with the method name and the response type:
+
+  ```ts
+  // PetService
+  // 'GET /pet/{petId}':           MOCK_API_PASS_THROUGH,  // getPetById → Pet
+  // 'GET /pet/findByStatus':      MOCK_API_PASS_THROUGH,  // findPetsByStatus → Pet[]
+  ```
+
+  Uncomment a line and change its value. The value already in the list fits the mode the
+  file was created in: `MOCK_API_PASS_THROUGH` in mock mode, `MOCK_API_GENERATED` in
+  pass-through mode.
+- Your editor suggests all available keys, and a typo is a compile error. Calls added to
+  the API later aren't in the list, but your editor suggests them too.
 - The app picks up changes right away. You don't need to run the generator again.
-- The generator creates this file once and never overwrites it.
+- The generator creates this file once and never overwrites it. To get the list of calls
+  again, move your entries out, delete the file and run the generator.
 - Calls that go to the real API show up in the Network tab like any real request. If
   [logging](#see-mocked-calls-in-the-console) is on, calls set to `MOCK_API_PASS_THROUGH`
   also get a `[mock] … → real API` line in the console, so you can see the setting took
@@ -209,7 +225,9 @@ export const MOCK_API_OVERRIDES: MockApiOverrides = {
 
 > [!NOTE]
 > If your overrides file was created by an older version, add `MOCK_API_GENERATED` and
-> `MOCK_API_PASS_THROUGH` to its import line as shown above, as far as you use them.
+> `MOCK_API_PASS_THROUGH` to its import line as shown above, as far as you use them. Its
+> keys like `'PetService.getPetById'` (service and method name) keep working, and you can
+> mix them with the new keys.
 
 If an endpoint is removed from the API, the generator removes its key, and `ng serve`
 shows an error for your override until you delete it.

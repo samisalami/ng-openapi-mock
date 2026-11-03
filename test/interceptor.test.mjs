@@ -26,10 +26,11 @@ before(async () => {
   writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  'PetService.getPetById': { id: 7, name: 'Rex', photoUrls: [] },
-  'PetService.deletePet': { deleted: true },
+  'GET /pet/{petId}': { id: 7, name: 'Rex', photoUrls: [] },
+  'DELETE /pet/{petId}': { deleted: true },
+  // A key from older overrides files.
   'StoreService.getOrderById': MOCK_API_GENERATED,
-  'UserService.loginUser': MOCK_API_PASS_THROUGH,
+  'GET /user/login': MOCK_API_PASS_THROUGH,
 };
 `);
 });
@@ -68,6 +69,27 @@ test('a freshly created overrides file type-checks', async () => {
   assert.deepEqual(typeErrors([path.join(project, 'src', 'app', 'mock-api', 'mock-api.interceptor.ts')]), []);
 });
 
+test('the created overrides file lists every call, and uncommented lines type-check', async () => {
+  const project = copyFixture();
+  const { routes } = await generateInto(project);
+  const modeDir = path.join(project, 'src', 'app', 'mock-api');
+  const file = path.join(modeDir, 'mock-api.overrides.ts');
+  const source = readFileSync(file, 'utf8');
+  for (const route of routes) assert.ok(source.includes(`// '${route.key}':`), route.key);
+  assert.match(source, /\/\/ PetService\n {2}\/\/ 'POST \/pet': +MOCK_API_PASS_THROUGH, {2}\/\/ addPet → Pet\n/);
+  assert.match(source, /'DELETE \/pet\/\{petId\}': +MOCK_API_PASS_THROUGH, {2}\/\/ deletePet → no body/);
+
+  writeFileSync(file, source.replace(/\/\/ ('(?:GET|POST|PUT|DELETE) [^']+':)/g, '$1'));
+  assert.deepEqual(typeErrors([path.join(modeDir, 'mock-api.interceptor.ts')]), []);
+});
+
+test('in pass-through mode the listed calls default to the generated data', async () => {
+  const project = copyFixture();
+  await generateInto(project, ['--mode', 'pass-through']);
+  const source = readFileSync(path.join(project, 'src', 'app', 'mock-api', 'mock-api.overrides.ts'), 'utf8');
+  assert.match(source, /\/\/ 'GET \/store\/inventory': +MOCK_API_GENERATED,/);
+});
+
 test('the overrides file rejects unknown keys', () => {
   const file = path.join(dir, 'typo.ts');
   writeFileSync(file, `import { MockApiOverrides } from './mock-api.data';
@@ -97,9 +119,9 @@ test('pass-through mode only mocks the calls listed in the overrides file', asyn
   writeFileSync(path.join(modeDir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  'PetService.getPetById': { id: 1, name: 'Listed', photoUrls: [] },
-  'StoreService.getInventory': MOCK_API_GENERATED,
-  'UserService.loginUser': MOCK_API_PASS_THROUGH,
+  'GET /pet/{petId}': { id: 1, name: 'Listed', photoUrls: [] },
+  'GET /store/inventory': MOCK_API_GENERATED,
+  'GET /user/login': MOCK_API_PASS_THROUGH,
 };
 `);
   assert.deepEqual(typeErrors([path.join(modeDir, 'mock-api.interceptor.ts')]), []);
@@ -159,7 +181,7 @@ test('sends pass-through calls to the real API and logs them', async () => {
   const login = await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/api/user/login'), () => of(real)));
   assert.equal(login, real);
   const [, line] = consoleCalls.find(([method]) => method === 'log');
-  assert.match(line, /GET \/api\/user\/login → real API %cUserService\.loginUser \(pass-through\)/);
+  assert.match(line, /GET \/api\/user\/login → real API %c'GET \/user\/login' \(pass-through\)/);
 
   const logout = await firstValueFrom(mockApiInterceptor(new HttpRequest('GET', '/api/user/logout'), () => of(real)));
   assert.equal(logout.status, 204, 'other calls are still mocked');
@@ -176,8 +198,8 @@ test('logs each mocked call to the browser console', async () => {
 
   const groups = consoleCalls.filter(([method]) => method === 'groupCollapsed').map(([, title]) => title);
   assert.equal(groups.length, 2, 'only mocked calls are logged');
-  assert.match(groups[0], /\[mock\]%c POST \/api\/store\/order → 200 %cStoreService\.placeOrder \(generated, \d+ ms\)/);
-  assert.match(groups[1], /GET \/api\/pet\/7\?details=true → 200 %cPetService\.getPetById \(override/);
+  assert.match(groups[0], /\[mock\]%c POST \/api\/store\/order → 200 %c'POST \/store\/order' \(generated, \d+ ms\)/);
+  assert.match(groups[1], /GET \/api\/pet\/7\?details=true → 200 %c'GET \/pet\/\{petId\}' \(override/);
   assert.deepEqual(consoleCalls.find(([, label]) => label === 'request body')[2], { petId: 1 });
   assert.equal(consoleCalls.filter(([method]) => method === 'groupEnd').length, 2);
 });

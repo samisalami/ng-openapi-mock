@@ -1,19 +1,23 @@
 // Custom mock responses. ng-openapi-mock creates this file once and never
 // overwrites it, so your changes are kept when you generate again.
 //
-// The key is <ServiceName>.<methodName> of the generated API client (your
-// editor suggests all of them). The value is one of
+// The key is "<METHOD> <path>" of an API call, with the path as in the API
+// spec (your editor suggests all of them). The value is one of
 // - a response body, to mock that call with it
 // - MOCK_API_GENERATED, to mock that call with the generated data
 //   (only needed in pass-through mode, where unlisted calls aren't mocked)
 // - MOCK_API_PASS_THROUGH, to send that call to the real API
+//
+// Every API call is listed below, commented out. Uncomment a line and change
+// its value. Calls added to the API later aren't listed, but your editor
+// suggests them too.
 //
 // Example for mock mode (the default): every call is mocked, the entries
 // change single responses or send single calls to the real API.
 //
 //   export const MOCK_API_OVERRIDES: MockApiOverrides = {
 //     // An object body replaces the generated data completely.
-//     'PetService.getPetById': {
+//     'GET /pet/{petId}': {
 //       id: 1,
 //       name: 'Rex',
 //       status: 'available',
@@ -22,20 +26,20 @@
 //       tags: [{ id: 1, name: 'friendly' }],
 //     },
 //     // A list endpoint takes an array. [] mocks an empty list.
-//     'PetService.findPetsByStatus': [
+//     'GET /pet/findByStatus': [
 //       { id: 1, name: 'Rex', photoUrls: [] },
 //       { id: 2, name: 'Bella', photoUrls: [] },
 //     ],
-//     'PetService.findPetsByTags': [],
+//     'GET /pet/findByTags': [],
 //     // A text endpoint takes a string.
-//     'UserService.loginUser': 'mock-session-token',
+//     'GET /user/login': 'mock-session-token',
 //     // null answers with an empty body.
-//     'StoreService.getOrderById': null,
+//     'GET /store/order/{orderId}': null,
 //     // An endpoint that normally returns nothing (204) answers 200 with this body.
-//     'PetService.deletePet': { deleted: true },
+//     'DELETE /pet/{petId}': { deleted: true },
 //     // These calls go to the real API.
-//     'UserService.logoutUser': MOCK_API_PASS_THROUGH,
-//     'StoreService.placeOrder': MOCK_API_PASS_THROUGH,
+//     'GET /user/logout': MOCK_API_PASS_THROUGH,
+//     'POST /store/order': MOCK_API_PASS_THROUGH,
 //   };
 //
 // Example for pass-through mode (--mode pass-through): every call goes to the
@@ -43,8 +47,8 @@
 //
 //   export const MOCK_API_OVERRIDES: MockApiOverrides = {
 //     // Mocked with this body.
-//     'StoreService.getInventory': { available: 12, pending: 3, sold: 40 },
-//     'UserService.getUserByName': {
+//     'GET /store/inventory': { available: 12, pending: 3, sold: 40 },
+//     'GET /user/{username}': {
 //       id: 1,
 //       username: 'jdoe',
 //       firstName: 'Jane',
@@ -52,14 +56,15 @@
 //       email: 'jane.doe@example.com',
 //     },
 //     // Mocked with the generated data, without writing a body.
-//     'StoreService.placeOrder': MOCK_API_GENERATED,
-//     'PetService.findPetsByStatus': MOCK_API_GENERATED,
+//     'POST /store/order': MOCK_API_GENERATED,
+//     'GET /pet/findByStatus': MOCK_API_GENERATED,
 //   };
 //
-// The service and method names above are examples: use the ones your editor
-// suggests. Bodies are not type-checked, so give them the shape your app expects.
+// The routes above are examples. Bodies are not type-checked, so give them
+// the shape your app expects: the type after → in the list below helps.
 //
 import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  // @routes
 };
