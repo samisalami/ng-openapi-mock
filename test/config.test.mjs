@@ -27,12 +27,12 @@ test('config file is applied and CLI flags win over it', () => {
   assert.equal(config.delay, 500);
 });
 
-test('mode defaults to mock and only accepts mock or pass-through', () => {
+test('mode defaults to pass-through and only accepts mock or pass-through', () => {
   const project = copyFixture();
-  assert.equal(resolveConfig(['--project', project]).mode, 'mock');
-  assert.equal(resolveConfig(['--project', project, '--mode', 'pass-through']).mode, 'pass-through');
-  writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({ mode: 'pass-through' }));
   assert.equal(resolveConfig(['--project', project]).mode, 'pass-through');
+  assert.equal(resolveConfig(['--project', project, '--mode', 'mock']).mode, 'mock');
+  writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({ mode: 'mock' }));
+  assert.equal(resolveConfig(['--project', project]).mode, 'mock');
   assert.throws(() => resolveConfig(['--project', project, '--mode', 'off']), /Use mock or pass-through/);
 });
 

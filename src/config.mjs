@@ -10,7 +10,7 @@ export const DEFAULTS = Object.freeze({
   baseDir: 'src/app',
   out: 'src/app/mock-api',
   specs: [],
-  mode: 'mock',
+  mode: 'pass-through',
   delay: 0,
   log: true,
   stub: false,
@@ -132,9 +132,9 @@ Options:
   -o, --out <dir>              Output folder (default: src/app/mock-api)
   -s, --spec <file|dir>        OpenAPI spec (.yaml, .yml, .json) or a folder of them, used for
                                examples, formats and limits. Repeat for several specs.
-  -m, --mode <mode>            mock: mock every call except pass-throughs (default)
-                               pass-through: send every call to the real API except
-                               the ones listed in mock-api.overrides.ts
+  -m, --mode <mode>            pass-through: send every call to the real API except
+                               the ones listed in mock-api.overrides.ts (default)
+                               mock: mock every call except pass-throughs
       --delay <ms>             Artificial response delay (default: 0)
       --no-log                 Don't log mocked calls to the browser console
       --stub                   Create mock-api.stub.ts next to the output folder and check

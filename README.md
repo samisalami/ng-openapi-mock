@@ -2,8 +2,12 @@
 
 Generates mock data for an Angular project whose API client was created with
 [openapi-generator](https://openapi-generator.tech) (`typescript-angular`), together with an
-Angular interceptor that answers the app's API calls with it. You don't need a backend or
-a separate server: `ng serve` is enough.
+Angular interceptor that answers the app's API calls with it. You don't need a separate
+server: `ng serve` is enough.
+
+By default, the app keeps talking to the real API and only the calls you pick are
+mocked. If you don't have a backend at all, [mock mode](#custom-responses-and-real-api-calls)
+mocks every call.
 
 You don't need to change the Angular project's `package.json` and nothing gets installed
 into it.
@@ -117,6 +121,10 @@ Then start the app the way you always do. Nothing about starting the app changes
 configurations all keep working. `ng serve` is only the plain default; any start command
 that runs the app in development mode uses the mocks.
 
+Right after setup, nothing is mocked yet: every call still goes to the real API. List
+the calls you want mocked in the [overrides file](#custom-responses-and-real-api-calls),
+or generate with `--mode mock` to mock all of them.
+
 Mocked API calls get an answer right away, and every other request (assets,
 translations, endpoints without a mock) goes through as normal. It doesn't matter which
 address the API client sends its calls to: `/api/pet/5`, `/pet/5` and
@@ -216,12 +224,24 @@ What happens to calls that **aren't** listed depends on the mode you generate wi
 
 | Mode | Calls not in the overrides file | Typical use |
 | --- | --- | --- |
-| `mock` (default) | mocked with the generated data | no backend, or only a few endpoints should be real |
-| `pass-through` | sent to the real API | a working backend, and only a few endpoints should be mocked |
+| `pass-through` (default) | sent to the real API | a working backend, and only a few endpoints should be mocked |
+| `mock` | mocked with the generated data | no backend, or only a few endpoints should be real |
 
-Choose the mode with `--mode pass-through`, or `"mode": "pass-through"` in the
+To mock everything, generate with `--mode mock`, or put `"mode": "mock"` in the
 [config file](#options). Switching modes needs one run of the generator; your overrides
 file stays as it is.
+
+**Pass-through mode** (default), use the real API except for two endpoints that aren't
+ready yet:
+
+```ts
+import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
+
+export const MOCK_API_OVERRIDES: MockApiOverrides = {
+  'GET /store/inventory': { available: 12, sold: 3 },  // custom response
+  'POST /store/order': MOCK_API_GENERATED,             // generated data
+};
+```
 
 **Mock mode**, mock everything except login:
 
@@ -231,17 +251,6 @@ import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './m
 export const MOCK_API_OVERRIDES: MockApiOverrides = {
   'GET /pet/{petId}': { id: 1, name: 'Rex', photoUrls: [] },  // custom response
   'GET /user/login': MOCK_API_PASS_THROUGH,                     // real API
-};
-```
-
-**Pass-through mode**, use the real API except for two endpoints that aren't ready yet:
-
-```ts
-import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
-
-export const MOCK_API_OVERRIDES: MockApiOverrides = {
-  'GET /store/inventory': { available: 12, sold: 3 },  // custom response
-  'POST /store/order': MOCK_API_GENERATED,             // generated data
 };
 ```
 
@@ -342,7 +351,7 @@ in the project root (command line wins).
 | `--generator-dir <dir>` | `generatorDir` | found automatically | The `.openapi-generator` folder |
 | `--base-dir <dir>` | `baseDir` | `src/app` | Folder the paths in `FILES` are relative to |
 | `--out <dir>` | `out` | `src/app/mock-api` | Where the files are written |
-| `--mode <mode>` | `mode` | `mock` | `mock` or `pass-through`, see [modes](#custom-responses-and-real-api-calls) |
+| `--mode <mode>` | `mode` | `pass-through` | `pass-through` or `mock`, see [modes](#custom-responses-and-real-api-calls) |
 | `--spec <file or folder>` | `specs` (list) | – | [OpenAPI specs](#better-mock-data-from-openapi-specs) for better mock data. Repeat for several |
 | `--delay <ms>` | `delay` | `0` | Delay before each mocked response |
 | `--no-log` | `log` | `true` | Turn off logging mocked calls to the browser console |
@@ -359,7 +368,7 @@ Paths are relative to the project root. Example config file:
   "baseDir": "src/app",
   "out": "src/app/core/mock-api",
   "specs": ["../api-specs/orders.yaml", "../api-specs/customers.yaml"],
-  "mode": "pass-through",
+  "mode": "mock",
   "delay": 300
 }
 ```
@@ -395,14 +404,16 @@ you to pick one with `--generator-dir`.
 - **`Cannot find module 'C:Users...'` in Git Bash**: the path was pasted with backslashes
   and without quotes. Use forward slashes or quotes. See the note under
   [Generate the mocks](#generate-the-mocks).
-- **API calls still reach the real backend**: check that the interceptor is registered in
-  `app.config.ts` and that the app runs in development mode (`ng serve`, not a
-  production build). In pass-through mode, only calls listed in `mock-api.overrides.ts`
-  are mocked; the console says which mode is active.
-- **Every call is mocked and logged, although you chose pass-through mode**: the files
-  were generated in mock mode. The generator's last lines and the first `[mock]` line in
-  the browser console both say which mode is active. Run the generator again with
-  `--mode pass-through` or `"mode": "pass-through"` in the config file.
+- **API calls still reach the real backend**: that's the default. In pass-through mode,
+  only calls listed in `mock-api.overrides.ts` are mocked. To mock everything, generate
+  with `--mode mock`. If listed calls aren't mocked either, check that the interceptor is
+  registered in `app.config.ts` and that the app runs in development mode (`ng serve`,
+  not a production build).
+- **Every call is mocked and logged, but you only want the listed ones**: the files were
+  generated in mock mode, by `--mode mock`, `"mode": "mock"` in the config file, or a
+  version of this tool from before pass-through became the default. The generator's last
+  line and the first `[mock]` line in the browser console both say which mode is active.
+  Run the generator again without `--mode mock`.
 - **A `mock-server/` folder from an older version**: it isn't used any more. Delete it.
 
 ## Developing this tool

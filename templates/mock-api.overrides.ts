@@ -5,14 +5,32 @@
 // spec (your editor suggests all of them). The value is one of
 // - a response body, to mock that call with it
 // - MOCK_API_GENERATED, to mock that call with the generated data
-//   (only needed in pass-through mode, where unlisted calls aren't mocked)
 // - MOCK_API_PASS_THROUGH, to send that call to the real API
+//   (only needed in mock mode, where unlisted calls are mocked)
 //
 // Every API call is listed in mock-api.routes.ts, which is updated each time
 // you generate. Your editor suggests the keys from there and shows the
 // service method and response type of each.
 //
-// Example for mock mode (the default): every call is mocked, the entries
+// Example for pass-through mode (the default): every call goes to the real
+// API, only the entries are mocked.
+//
+//   export const MOCK_API_OVERRIDES: MockApiOverrides = {
+//     // Mocked with this body.
+//     'GET /store/inventory': { available: 12, pending: 3, sold: 40 },
+//     'GET /user/{username}': {
+//       id: 1,
+//       username: 'jdoe',
+//       firstName: 'Jane',
+//       lastName: 'Doe',
+//       email: 'jane.doe@example.com',
+//     },
+//     // Mocked with the generated data, without writing a body.
+//     'POST /store/order': MOCK_API_GENERATED,
+//     'GET /pet/findByStatus': MOCK_API_GENERATED,
+//   };
+//
+// Example for mock mode (--mode mock): every call is mocked, the entries
 // change single responses or send single calls to the real API.
 //
 //   export const MOCK_API_OVERRIDES: MockApiOverrides = {
@@ -40,24 +58,6 @@
 //     // These calls go to the real API.
 //     'GET /user/logout': MOCK_API_PASS_THROUGH,
 //     'POST /store/order': MOCK_API_PASS_THROUGH,
-//   };
-//
-// Example for pass-through mode (--mode pass-through): every call goes to the
-// real API, only the entries are mocked.
-//
-//   export const MOCK_API_OVERRIDES: MockApiOverrides = {
-//     // Mocked with this body.
-//     'GET /store/inventory': { available: 12, pending: 3, sold: 40 },
-//     'GET /user/{username}': {
-//       id: 1,
-//       username: 'jdoe',
-//       firstName: 'Jane',
-//       lastName: 'Doe',
-//       email: 'jane.doe@example.com',
-//     },
-//     // Mocked with the generated data, without writing a body.
-//     'POST /store/order': MOCK_API_GENERATED,
-//     'GET /pet/findByStatus': MOCK_API_GENERATED,
 //   };
 //
 // The routes above are examples. Bodies are not type-checked, so give them

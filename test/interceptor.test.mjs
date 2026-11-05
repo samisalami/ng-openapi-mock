@@ -21,7 +21,7 @@ before(async () => {
     console[method] = (...args) => consoleCalls.push([method, ...args]);
   }
   const project = copyFixture();
-  await generateInto(project);
+  await generateInto(project, ['--mode', 'mock']);
   dir = path.join(project, 'src', 'app', 'mock-api');
   writeFileSync(path.join(dir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.data';
 
@@ -124,9 +124,9 @@ async function loadInterceptor(query = '', from = dir) {
   return import(pathToFileURL(path.join(from, 'mock-api.interceptor.mjs')).href + query);
 }
 
-test('pass-through mode only mocks the calls listed in the overrides file', async () => {
+test('pass-through mode, the default, only mocks the calls listed in the overrides file', async () => {
   const project = copyFixture();
-  await generateInto(project, ['--mode', 'pass-through']);
+  await generateInto(project);
   const modeDir = path.join(project, 'src', 'app', 'mock-api');
   writeFileSync(path.join(modeDir, 'mock-api.overrides.ts'), `import { MockApiOverrides, MOCK_API_GENERATED, MOCK_API_PASS_THROUGH } from './mock-api.routes';
 
