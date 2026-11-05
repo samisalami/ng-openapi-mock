@@ -18,6 +18,8 @@ export const DEFAULTS = Object.freeze({
   maxDepth: 4,
 });
 
+const CONFIG_KEYS = ['$schema', 'generatorDir', 'baseDir', 'out', 'specs', 'mode', 'delay', 'log', 'stub', 'arrayLength', 'maxDepth'];
+
 const OPTIONS = {
   project: { type: 'string', short: 'p' },
   'generator-dir': { type: 'string', short: 'g' },
@@ -67,6 +69,12 @@ export function resolveConfig(argv, cwd = process.cwd()) {
     }
   } else if (flags.config) {
     throw new ConfigError(`Config file not found: ${configPath}`);
+  }
+  // A misspelled key would otherwise be ignored without a word.
+  const unknown = Object.keys(fileConfig).filter((key) => !CONFIG_KEYS.includes(key));
+  if (unknown.length > 0) {
+    throw new ConfigError(`Unknown key${unknown.length > 1 ? 's' : ''} in ${configPath}: ${unknown.map((k) => JSON.stringify(k)).join(', ')}. `
+      + `Known keys: ${CONFIG_KEYS.filter((k) => k !== '$schema').join(', ')}.`);
   }
 
   const pick = (flag, key) => flags[flag] ?? fileConfig[key] ?? DEFAULTS[key];

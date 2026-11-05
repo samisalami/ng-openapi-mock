@@ -70,6 +70,9 @@ export async function generate(config, log = console.log) {
     log(`Matched ${routes.length - unmatched.length} of ${routes.length} calls to ${names}`);
   }
   log(`Generated ${routes.length} mocked routes from ${files.length} files into ${rel(out)}`);
+  log(config.mode === 'pass-through'
+    ? 'Mode: pass-through (only calls listed in mock-api.overrides.ts are mocked)'
+    : 'Mode: mock (every call is mocked, except pass-throughs in mock-api.overrides.ts)');
   if (createdOverrides) log(`Created ${rel(path.join(out, 'mock-api.overrides.ts'))} for your custom responses`);
   if (config.stub) {
     const { stubFile, createdStub, hint } = setupStub(ts, config);

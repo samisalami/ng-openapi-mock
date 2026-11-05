@@ -399,6 +399,10 @@ you to pick one with `--generator-dir`.
   `app.config.ts` and that the app runs in development mode (`ng serve`, not a
   production build). In pass-through mode, only calls listed in `mock-api.overrides.ts`
   are mocked; the console says which mode is active.
+- **Every call is mocked and logged, although you chose pass-through mode**: the files
+  were generated in mock mode. The generator's last lines and the first `[mock]` line in
+  the browser console both say which mode is active. Run the generator again with
+  `--mode pass-through` or `"mode": "pass-through"` in the config file.
 - **A `mock-server/` folder from an older version**: it isn't used any more. Delete it.
 
 ## Developing this tool

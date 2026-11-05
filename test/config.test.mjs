@@ -36,6 +36,12 @@ test('mode defaults to mock and only accepts mock or pass-through', () => {
   assert.throws(() => resolveConfig(['--project', project, '--mode', 'off']), /Use mock or pass-through/);
 });
 
+test('rejects unknown keys in the config file', () => {
+  const project = copyFixture();
+  writeFileSync(path.join(project, 'ng-openapi-mock.config.json'), JSON.stringify({ Mode: 'pass-through', delay: 1 }));
+  assert.throws(() => resolveConfig(['--project', project]), /Unknown key in .*: "Mode"\. Known keys: generatorDir, .*mode/);
+});
+
 test('logging is on by default and can be turned off', () => {
   const project = copyFixture();
   assert.equal(resolveConfig(['--project', project]).log, true);
